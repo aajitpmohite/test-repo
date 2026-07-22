@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DB Quest AI — Pitch</title>
+    <style>
+      :root {
+        --navy: #0c1c5e;
+        --blue: #2f4bdb;
+        --light: #eef2ff;
+        --dark: #181e34;
+        --grey: #5f6980;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: "Segoe UI", Inter, system-ui, sans-serif;
+        color: var(--dark);
+        line-height: 1.5;
+        background: #f4f6fb;
+      }
+      .page {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 10px auto;
+        padding: 20mm 18mm;
+        background: #fff;
+        box-shadow: 0 6px 24px rgba(10, 15, 44, 0.12);
+      }
+      h1, h2, h3 { margin: 0; }
+      p { margin: 0 0 8px; }
+
+      /* Cover */
+      .cover-band {
+        margin: -20mm -18mm 14mm;
+        padding: 26mm 18mm 10mm;
+        background: linear-gradient(135deg, #152a8a, #0c1c5e);
+        color: #fff;
+        text-align: center;
+        border-bottom: 3px solid var(--blue);
+      }
+      .kicker { color: #93a7ff; font-weight: 700; letter-spacing: 1px; font-size: 11px; }
+      .cover-title { font-size: 44px; font-weight: 800; margin: 14px 0 6px; }
+      .cover-sub { font-size: 16px; color: #c8d2ff; }
+      .cover-tag { font-style: italic; color: #e6ebff; margin-top: 12px; font-size: 13px; }
+
+      .lead { font-size: 15px; }
+      .stats { display: flex; gap: 8px; margin-top: 14px; }
+      .stat { flex: 1; background: var(--light); border-radius: 10px; padding: 14px; text-align: center; }
+      .stat .big { color: var(--blue); font-size: 22px; font-weight: 800; }
+      .stat .small { color: var(--grey); font-size: 11px; margin-top: 4px; }
+
+      .section-title {
+        background: var(--navy);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin: 22px 0 12px;
+      }
+      .feature { padding-left: 16px; position: relative; margin-bottom: 12px; }
+      .feature::before {
+        content: ""; position: absolute; left: 2px; top: 7px;
+        width: 6px; height: 6px; background: var(--blue); border-radius: 2px;
+      }
+      .feature .name { font-weight: 700; color: var(--navy); }
+      .feature .desc { color: var(--grey); font-size: 13px; }
+
+      ul.bullets { list-style: none; padding: 0; margin: 0; }
+      ul.bullets li { padding-left: 16px; position: relative; margin-bottom: 8px; font-size: 13.5px; }
+      ul.bullets li::before {
+        content: ""; position: absolute; left: 2px; top: 7px;
+        width: 6px; height: 6px; background: var(--blue); border-radius: 2px;
+      }
+
+      .callout {
+        background: var(--light);
+        border-left: 4px solid var(--blue);
+        padding: 12px 16px;
+        border-radius: 4px;
+        font-style: italic;
+        color: var(--navy);
+        margin: 12px 0;
+      }
+
+      .sell { display: flex; gap: 12px; margin-bottom: 14px; }
+      .sell .num {
+        flex: 0 0 30px; height: 30px; background: var(--navy); color: #fff;
+        border-radius: 6px; display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 15px;
+      }
+      .sell .title { font-weight: 700; color: var(--navy); }
+      .sell .body { color: var(--dark); font-size: 13px; }
+
+      .divider { height: 2px; background: var(--blue); margin: 18px 0; border: 0; }
+      .close { color: var(--navy); font-weight: 700; font-size: 15px; }
+
+      .toolbar {
+        position: sticky; top: 0; z-index: 10; text-align: center;
+        background: #0c1c5e; color: #fff; padding: 10px; font-size: 13px;
+      }
+      .toolbar button {
+        background: #2f4bdb; color: #fff; border: 0; padding: 8px 16px;
+        border-radius: 8px; font-weight: 700; cursor: pointer; margin-left: 8px;
+      }
+
+      @media print {
+        body { background: #fff; }
+        .toolbar { display: none; }
+        .page { margin: 0; box-shadow: none; width: auto; min-height: auto; page-break-after: always; }
+        .page:last-child { page-break-after: auto; }
+      }
+      @page { size: A4; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      To export: click Save as PDF (or press Ctrl+P → Destination: “Save as PDF”).
+      <button onclick="window.print()">Save as PDF</button>
+    </div>
+
+    <!-- PAGE 1 — COVER -->
+    <section class="page">
+      <div class="cover-band">
+        <div class="kicker">DEUTSCHE BANK · FUTUREREADY / GLOBAL HACKATHON 2026</div>
+        <div class="cover-title">DB Quest AI</div>
+        <div class="cover-sub">AI Digital Colleague + Escape Missions</div>
+        <div class="cover-tag">“Learn faster. Work smarter. Stay compliant.”</div>
+      </div>
+
+      <h2 class="section-title" style="margin-top:0">The one-line pitch</h2>
+      <p class="lead">
+        DB Quest AI is an AI-powered web application that makes a bank’s people faster to onboard, safer,
+        and more engaged. It combines an <strong>AI Digital Colleague</strong> that answers project and
+        process questions with cited sources, with an <strong>AI Escape-Room</strong> that turns policies
+        into interactive, adaptive learning missions. The key differentiator: AI is not only used to
+        <em>build</em> the app — AI is embedded <em>inside</em> the product.
+      </p>
+
+      <div class="stats">
+        <div class="stat"><div class="big">2-in-1</div><div class="small">Knowledge assistant + interactive compliance training</div></div>
+        <div class="stat"><div class="big">0 setup</div><div class="small">Runs fully offline in demo mode; pluggable live LLM</div></div>
+        <div class="stat"><div class="big">8 AI</div><div class="small">AI features embedded across the product</div></div>
+      </div>
+
+      <h2 class="section-title">The Problem</h2>
+      <div class="feature">
+        <div class="name">1. Knowledge exists, but it is fragmented</div>
+        <div class="desc">Scattered across SharePoint, Confluence, Teams, email, tickets and code. New joiners
+          and engineers lose hours asking “Who owns this? Where is the doc? What changed?” — and interrupt
+          senior staff to find out.</div>
+      </div>
+      <div class="feature">
+        <div class="name">2. Mandatory training is passive</div>
+        <div class="desc">Cybersecurity, data privacy, phishing and AI-usage training arrives as PDFs and
+          slides. People click through without truly learning, so they know policies in theory but may not
+          apply them under real pressure.</div>
+      </div>
+      <div class="callout">
+        In a bank, one wrong decision can cause data leakage, a security incident, a regulatory issue,
+        reputational damage or operational loss. The knowledge and the rules exist — the gap is fast access
+        and real understanding.
+      </div>
+    </section>
+
+    <!-- PAGE 2 — SOLUTION + FEATURES -->
+    <section class="page">
+      <h2 class="section-title" style="margin-top:0">The Solution — one product, two pillars</h2>
+      <div class="feature">
+        <div class="name">Pillar 1 — AI Digital Colleague</div>
+        <div class="desc">Answers questions about your project, process and systems with cited sources;
+          onboards new joiners with a day-by-day plan; explains bank acronyms; finds the right expert by
+          document ownership; and summarises documents into decisions, risks and actions.</div>
+      </div>
+      <div class="feature">
+        <div class="name">Pillar 2 — AI Escape Missions</div>
+        <div class="desc">Compliance training reimagined as an escape room. An AI Game Master narrates
+          adaptively, gives progressive hints, explains every decision, and produces a private, personalised
+          risk-awareness report. Admins can generate a brand-new mission from any topic instantly.</div>
+      </div>
+
+      <h2 class="section-title">Key Features</h2>
+      <div class="feature"><div class="name">Ask Digital Colleague</div><div class="desc">Retrieval-grounded Q&A over team documents, with cited sources and a confidence signal.</div></div>
+      <div class="feature"><div class="name">AI Onboarding Buddy</div><div class="desc">Generates a structured, role- and project-specific day-by-day onboarding plan.</div></div>
+      <div class="feature"><div class="name">AI Acronym Explainer</div><div class="desc">Decodes bank acronyms (UBR, SFT, IRT, UAT…) with plain-language meaning and context.</div></div>
+      <div class="feature"><div class="name">AI Expert Finder</div><div class="desc">Suggests contacts by document ownership and topic match — explicitly not a performance ranking.</div></div>
+      <div class="feature"><div class="name">Document Summariser</div><div class="desc">Extracts key points, decisions, action items, risks and people mentioned.</div></div>
+      <div class="feature"><div class="name">Escape-Room Missions</div><div class="desc">Adaptive Game Master, progressive hints, and per-decision policy explanations.</div></div>
+      <div class="feature"><div class="name">AI Mission Generator</div><div class="desc">Turns any policy or risk topic into a fully playable mission in seconds.</div></div>
+      <div class="feature"><div class="name">Personalised Learning Report</div><div class="desc">A private risk-awareness score with strengths and improvement areas.</div></div>
+
+      <h2 class="section-title">Where AI is embedded (the differentiator)</h2>
+      <ul class="bullets">
+        <li><strong>To build it:</strong> Copilot and LLMs helped generate the UI, backend APIs, prompts and sample data.</li>
+        <li><strong>Inside the product:</strong> it answers questions from documents, summarises them, generates onboarding plans, creates and narrates adaptive missions, adapts hints and feedback to each player, and produces personalised learning summaries.</li>
+      </ul>
+      <div class="callout">
+        We are not building just another chatbot. We are building an AI colleague that answers, onboards,
+        finds knowledge — and turns important policies into interactive learning missions.
+      </div>
+    </section>
+
+    <!-- PAGE 3 — DEMO + SELLING POINTS -->
+    <section class="page">
+      <h2 class="section-title" style="margin-top:0">Live Demo Flow (5 minutes)</h2>
+      <ul class="bullets">
+        <li><strong>Step 1:</strong> Ask the Digital Colleague “What is the production deployment process?” — see a source-cited answer.</li>
+        <li><strong>Step 2:</strong> Generate an onboarding plan, decode an acronym (UBR), and find an expert for “deployment pipeline”.</li>
+        <li><strong>Step 3:</strong> Play “Phishing at 5 PM”: make a wrong choice, see the AI explanation, then investigate with the Game Master and hints.</li>
+        <li><strong>Step 4:</strong> Finish the mission and reveal the private, personalised learning report.</li>
+        <li><strong>Step 5:</strong> Admin types “Using confidential data in external AI tools” and AI generates a new playable mission live.</li>
+      </ul>
+
+      <h2 class="section-title">Selling Points — Why We Win</h2>
+      <div class="sell"><div class="num">1</div><div><div class="title">AI inside the product, not just in the build</div><div class="body">Every core action is AI-powered — answering, summarising, onboarding, mission generation, adaptive coaching and scoring. This directly matches the theme of applying AI in practice.</div></div></div>
+      <div class="sell"><div class="num">2</div><div><div class="title">Solves two real problems in one product</div><div class="body">Knowledge discovery and engaging compliance training — a broader impact and a stronger story than a single-purpose tool.</div></div></div>
+      <div class="sell"><div class="num">3</div><div><div class="title">It never fails on stage</div><div class="body">Runs fully offline with deterministic AI generators and zero API keys, and upgrades to OpenAI, Azure OpenAI or Gemini with one setting. Live calls fall back automatically if they fail.</div></div></div>
+      <div class="sell"><div class="num">4</div><div><div class="title">Enterprise-ready and responsible by design</div><div class="body">Answers are grounded and cite sources; mission scores are private with only aggregated team insights shared; the expert finder avoids performance judgements; mission answer keys never reach the browser.</div></div></div>
+      <div class="sell"><div class="num">5</div><div><div class="title">Genuinely engaging and adaptive</div><div class="body">The Game Master reacts to what the player inspects, hints get progressively stronger, and feedback is tailored — turning passive training into active learning people remember.</div></div></div>
+      <div class="sell"><div class="num">6</div><div><div class="title">Instant content at zero marginal cost</div><div class="body">Training teams stop hand-writing every scenario: any new policy becomes an interactive mission the same day an admin types the topic.</div></div></div>
+      <div class="sell"><div class="num">7</div><div><div class="title">Clean, extensible architecture</div><div class="body">Routers depend only on an AI service that swaps live LLM and mock transparently; the TF-IDF retriever can be replaced by FAISS/Chroma without touching the app.</div></div></div>
+    </section>
+
+    <!-- PAGE 4 — IMPACT + FIT + STACK -->
+    <section class="page">
+      <h2 class="section-title" style="margin-top:0">Business Impact</h2>
+      <ul class="bullets">
+        <li>Faster onboarding and time-to-productivity for new joiners.</li>
+        <li>Reduced dependency on senior staff for routine knowledge questions.</li>
+        <li>Stronger, measurable risk and cybersecurity awareness across teams.</li>
+        <li>Higher training engagement and better real-world policy adoption.</li>
+        <li>Faster incident and issue resolution through instant knowledge access.</li>
+        <li>Better knowledge retention as project memory is captured and reusable.</li>
+      </ul>
+
+      <h2 class="section-title">Why It Fits the Deutsche Bank Theme</h2>
+      <p>The theme is about applying AI in practice to improve operations and shape the bank of tomorrow.
+        DB Quest AI converts static knowledge and training into intelligent, adaptive experiences —
+        improving risk awareness, employee learning, cybersecurity readiness, policy adoption and day-to-day
+        efficiency.</p>
+
+      <h2 class="section-title">Technology</h2>
+      <ul class="bullets">
+        <li><strong>Frontend:</strong> React 18, Vite, Tailwind CSS, React Router.</li>
+        <li><strong>Backend:</strong> Python, FastAPI, Pydantic v2, httpx.</li>
+        <li><strong>AI:</strong> OpenAI / Azure OpenAI / Google Gemini — or a built-in deterministic mock for offline demos.</li>
+        <li><strong>Retrieval:</strong> dependency-free TF-IDF chunk search (swappable for a vector database).</li>
+        <li><strong>Storage:</strong> JSON seed data plus an in-memory document store.</li>
+      </ul>
+
+      <hr class="divider" />
+      <p class="close">DB Quest AI — a smarter, safer, more future-ready bank. Runs today with zero setup;
+        ready for production with a single configuration change.</p>
+    </section>
+  </body>
+</html>

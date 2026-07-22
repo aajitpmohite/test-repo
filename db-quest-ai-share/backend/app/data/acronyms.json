@@ -1,0 +1,92 @@
+{
+  "UBR": {
+    "expansion": "Unadjusted Business Requirement",
+    "explanation": "A raw business requirement captured before impact analysis, sizing or prioritisation is applied.",
+    "context": "In delivery teams, UBRs are logged first, then refined into adjusted, estimated work items.",
+    "related": ["BRD", "Impact Analysis"]
+  },
+  "SFT": {
+    "expansion": "Securities Financing Transaction",
+    "explanation": "A transaction such as a repo, securities lending or margin loan where securities are used to borrow cash or vice versa.",
+    "context": "Common in markets/treasury systems and subject to SFTR regulatory reporting.",
+    "related": ["Repo", "SFTR", "Collateral"]
+  },
+  "TLA": {
+    "expansion": "Three-Letter Acronym",
+    "explanation": "A tongue-in-cheek term for the many three-letter acronyms used across the bank.",
+    "context": "Used humorously, but also literally when documenting new abbreviations for new joiners.",
+    "related": ["Glossary"]
+  },
+  "IRT": {
+    "expansion": "Incident Response Team",
+    "explanation": "The team that coordinates the response to a security or major operational incident.",
+    "context": "Engaged when a phishing attempt succeeds, data is exposed, or a Sev-1/Sev-2 incident is declared.",
+    "related": ["SOC", "Incident Management", "Sev-1"]
+  },
+  "UAT": {
+    "expansion": "User Acceptance Testing",
+    "explanation": "The final testing stage where business users validate that a change meets requirements before release.",
+    "context": "UAT sign-off is a mandatory gate in the deployment process.",
+    "related": ["SIT", "Release", "Sign-off"]
+  },
+  "ETL": {
+    "expansion": "Extract, Transform, Load",
+    "explanation": "The pattern of extracting data from sources, transforming it, and loading it into a target store.",
+    "context": "The core data flow for reporting and analytics pipelines.",
+    "related": ["Data Pipeline", "Batch"]
+  },
+  "SLA": {
+    "expansion": "Service Level Agreement",
+    "explanation": "An agreed target for service performance, such as resolution time for incidents.",
+    "context": "Support teams track incidents against SLA to ensure timely resolution.",
+    "related": ["SLO", "Support", "Incident"]
+  },
+  "KYC": {
+    "expansion": "Know Your Customer",
+    "explanation": "The process of verifying the identity and risk profile of clients.",
+    "context": "Central to onboarding clients and to client-data handling controls.",
+    "related": ["AML", "Onboarding", "Due Diligence"]
+  },
+  "AML": {
+    "expansion": "Anti-Money Laundering",
+    "explanation": "Controls and processes to detect and prevent money laundering.",
+    "context": "Works alongside KYC and transaction monitoring.",
+    "related": ["KYC", "Sanctions", "Transaction Monitoring"]
+  },
+  "RTB": {
+    "expansion": "Run the Bank",
+    "explanation": "Day-to-day operational activities that keep existing systems and services running.",
+    "context": "Contrasted with CTB (Change the Bank) project/change work.",
+    "related": ["CTB", "BAU", "Operations"]
+  },
+  "CTB": {
+    "expansion": "Change the Bank",
+    "explanation": "Project and change activity that delivers new capability or transformation.",
+    "context": "Funded and tracked separately from RTB run costs.",
+    "related": ["RTB", "Project", "Delivery"]
+  },
+  "SIT": {
+    "expansion": "System Integration Testing",
+    "explanation": "Testing that verifies integrated components and systems work together correctly.",
+    "context": "Precedes UAT in the test cycle.",
+    "related": ["UAT", "Testing"]
+  },
+  "SOC": {
+    "expansion": "Security Operations Centre",
+    "explanation": "The team that monitors, detects and responds to cybersecurity threats around the clock.",
+    "context": "Where reported phishing and security alerts are triaged.",
+    "related": ["IRT", "Monitoring", "Threat"]
+  },
+  "DPO": {
+    "expansion": "Data Protection Officer",
+    "explanation": "The role responsible for overseeing data protection strategy and compliance.",
+    "context": "Escalation point for suspected data leaks and privacy concerns.",
+    "related": ["GDPR", "Data Privacy"]
+  },
+  "BAU": {
+    "expansion": "Business As Usual",
+    "explanation": "Normal, ongoing operational activity outside of projects or incidents.",
+    "context": "Often used to describe steady-state support and maintenance work.",
+    "related": ["RTB", "Operations"]
+  }
+}

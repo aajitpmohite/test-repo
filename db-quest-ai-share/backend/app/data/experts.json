@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Priya Sharma",
+    "role": "Tech Lead — Payments Platform",
+    "topics": ["architecture", "system design", "payments", "api", "data flow", "integration"],
+    "owns": ["Architecture Summary", "API design guidelines"],
+    "contact": "priya.sharma@example.db.com"
+  },
+  {
+    "name": "Marcus Weber",
+    "role": "Release Manager",
+    "topics": ["deployment", "release", "change approval", "pipeline", "cutover", "rollback"],
+    "owns": ["Production Deployment Checklist", "Release Notes"],
+    "contact": "marcus.weber@example.db.com"
+  },
+  {
+    "name": "Aisha Khan",
+    "role": "Support Lead — Production",
+    "topics": ["incident", "support", "on-call", "production issues", "monitoring", "sla", "batch"],
+    "owns": ["Support & Incident Guide"],
+    "contact": "aisha.khan@example.db.com"
+  },
+  {
+    "name": "David Okoro",
+    "role": "Data Engineer",
+    "topics": ["etl", "data pipeline", "batch", "database", "schema", "data quality"],
+    "owns": ["ETL runbook"],
+    "contact": "david.okoro@example.db.com"
+  },
+  {
+    "name": "Elena Rossi",
+    "role": "Information Security Partner",
+    "topics": ["security", "phishing", "access", "controls", "risk", "compliance", "data privacy"],
+    "owns": ["Security controls catalogue"],
+    "contact": "elena.rossi@example.db.com"
+  },
+  {
+    "name": "Tom Becker",
+    "role": "Onboarding Buddy / Senior Engineer",
+    "topics": ["onboarding", "environment setup", "access", "getting started", "glossary"],
+    "owns": ["Onboarding Guide"],
+    "contact": "tom.becker@example.db.com"
+  }
+]
