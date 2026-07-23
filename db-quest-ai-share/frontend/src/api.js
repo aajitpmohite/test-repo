@@ -2,6 +2,18 @@
 // Automatically attaches the JWT (Authorization) and the selected team (X-Team-Id)
 // to every request, and routes 401s to a logout handler registered by AuthContext.
 
+// Base URL for the backend API. In production the API is served same-origin under
+// "/api", so the default works with no configuration. Set VITE_API_URL to point at a
+// separately hosted backend (e.g. "https://my-api.example.com/api"). Call sites pass
+// paths like "/api/health"; we map the leading "/api" onto API_BASE so both work.
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+function buildUrl(path) {
+  if (/^https?:\/\//i.test(path)) return path;
+  const relative = path.startsWith('/api') ? path.slice(4) : path;
+  return `${API_BASE}${relative}`;
+}
+
 const TOKEN_KEY = 'dbquest_token';
 const TEAM_KEY = 'dbquest_team_id';
 
@@ -35,7 +47,7 @@ async function request(path, options = {}) {
   const isForm = options.body instanceof FormData;
   if (!isForm && options.body != null) headers['Content-Type'] = 'application/json';
 
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(buildUrl(path), { ...options, headers });
 
   if (response.status === 401) {
     if (onUnauthorized) onUnauthorized();

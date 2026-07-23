@@ -18,7 +18,13 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent  # .../backend
 load_dotenv(BASE_DIR / ".env")
 
-STORAGE_DIR = BASE_DIR / "storage"
+# Serverless platforms (Vercel) ship a READ-ONLY filesystem except for /tmp, and the
+# project files themselves cannot be written to. So we default writable state (the
+# SQLite file) to /tmp there. NOTE: /tmp is per-instance and ephemeral — for durable
+# persistence set DATABASE_URL to a managed Postgres (see .env.example).
+_RUNNING_SERVERLESS = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+_default_storage = "/tmp/dbquest-storage" if _RUNNING_SERVERLESS else str(BASE_DIR / "storage")
+STORAGE_DIR = Path(os.getenv("STORAGE_DIR", _default_storage))
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -47,12 +53,20 @@ class Settings:
     # ---- Database ----
     database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{(STORAGE_DIR / 'dbquest.db').as_posix()}")
 
-    # ---- Web ----
+    # ---- Web / CORS ----
+    # On Vercel the React app and the API share ONE origin (the app calls the relative
+    # path /api), so CORS is not strictly required in production. We still allow local
+    # dev origins by default and auto-allow the current Vercel deployment URL. Set
+    # CORS_ORIGINS="*" to allow any origin (e.g. a separately hosted frontend).
     cors_origins: list[str] = [
         item.strip()
-        for item in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+        for item in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
         if item.strip()
-    ]
+    ] + ([f"https://{os.environ['VERCEL_URL']}"] if os.getenv("VERCEL_URL") else [])
+
+    @property
+    def cors_allow_all(self) -> bool:
+        return "*" in self.cors_origins
 
     # ---- Behaviour flags ----
     seed_demo: bool = os.getenv("SEED_DEMO", "true").strip().lower() in ("1", "true", "yes")

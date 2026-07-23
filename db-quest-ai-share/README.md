@@ -120,6 +120,70 @@ backend. Check `http://localhost:8000/api/health` -> `liveAi: true`.
 
 ---
 
+## Deploy to Vercel
+
+The repo ships a `vercel.json` that builds the Vite frontend as static assets and runs
+FastAPI as a Python **Serverless Function**. Routing: `/api/*` -> FastAPI, everything
+else -> the React SPA (`index.html`).
+
+### Steps
+1. Push this repo to GitHub/GitLab/Bitbucket.
+2. In Vercel, **Add New… → Project** and import the repo.
+3. Set **Root Directory** to **`db-quest-ai-share`** (the folder that contains
+   `vercel.json`, `frontend/`, and `backend/`). Leave the build/output settings on their
+   defaults — `vercel.json` drives the build.
+4. Add environment variables (Project → Settings → Environment Variables) as needed:
+   - `JWT_SECRET` — a long random string (**required for production**).
+   - `AI_PROVIDER` + the matching key (`OPENAI_API_KEY`, `AZURE_*`, or `GEMINI_API_KEY`)
+     to enable live AI. Omit for offline mock mode.
+   - `DATABASE_URL` — a managed Postgres URL for durable data (see the note below).
+   - `VITE_API_URL` is **not** needed — the frontend calls the same-origin `/api`.
+5. **Deploy.** When it's live, open `/api/health` to confirm the API responds.
+
+### Serverless notes & limitations
+- **Filesystem is read-only except `/tmp`.** The app auto-detects Vercel and writes the
+  default SQLite file to `/tmp`, so it boots and seeds the demo with zero config.
+- **`/tmp` is ephemeral and per-instance.** Uploaded documents and generated missions
+  written to the default SQLite DB do **not** survive cold starts or scale-out. For real
+  persistence set `DATABASE_URL` to a managed Postgres (Vercel Postgres / Neon / Supabase)
+  and add `psycopg[binary]` to `backend/requirements.txt` — no code changes needed.
+- **DB init is lazy + idempotent** (runs on the first request), so it works even though
+  serverless bridges don't always run ASGI lifespan startup.
+- No long-running/background tasks are used; each request completes within the function
+  timeout.
+
+### CI/CD (GitHub Actions)
+
+`.github/workflows/vercel-deploy.yml` (at the **repo root**) runs on every push/PR:
+
+1. **verify** — installs backend deps + runs an import/health smoke test (with `VERCEL=1`
+   to exercise the serverless path), then `npm ci` + `npm run build` for the frontend.
+2. **deploy** — uses the Vercel CLI. **Pull requests → Preview** deploy (the preview URL is
+   commented on the PR); **push to `main` → Production** deploy.
+
+**One-time setup** (so CLI deploys and the dashboard agree on the app folder):
+
+```bash
+# From the repo root, link the project once and grab its IDs:
+npm i -g vercel
+vercel link            # choose/create the project; set Root Directory = db-quest-ai-share
+cat .vercel/project.json   # -> "orgId" and "projectId"
+```
+
+Then add three **GitHub repo secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Where to get it |
+|--------|-----------------|
+| `VERCEL_TOKEN` | Vercel → Account Settings → **Tokens** → create token |
+| `VERCEL_ORG_ID` | `.vercel/project.json` → `orgId` |
+| `VERCEL_PROJECT_ID` | `.vercel/project.json` → `projectId` |
+
+Set production env vars (`JWT_SECRET`, optional `AI_PROVIDER`/keys, optional `DATABASE_URL`)
+in the Vercel dashboard — they apply to CLI deploys too. If you use the Actions pipeline,
+disable Vercel's own Git integration for the project to avoid double deploys.
+
+---
+
 ## Environment variables
 
 | Var | Default | Meaning |

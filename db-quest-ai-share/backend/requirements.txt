@@ -7,3 +7,6 @@ python-multipart==0.0.20
 sqlmodel==0.0.22
 passlib==1.7.4
 python-jose[cryptography]==3.3.0
+# Postgres driver (used only when DATABASE_URL=postgresql+psycopg://...).
+# Recommended on Vercel for durable data, since the default SQLite lives in ephemeral /tmp.
+psycopg[binary]==3.2.3
