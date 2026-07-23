@@ -61,7 +61,6 @@ class AIProvider:
             payload = {
                 "model": self.config.get("openai_model", "gpt-4o-mini"),
                 "messages": self._messages(prompt, system),
-                "temperature": 0.2,
             }
             headers = {"Authorization": f"Bearer {self.config.get('api_key', '')}"}
             with httpx.Client(timeout=30.0) as client:
@@ -78,7 +77,7 @@ class AIProvider:
             api_version = self.config.get("azure_api_version", "2024-02-01")
             url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
             headers = {"api-key": self.config.get("api_key", "")}
-            payload = {"messages": self._messages(prompt, system), "temperature": 0.2}
+            payload = {"messages": self._messages(prompt, system)}
             with httpx.Client(timeout=30.0) as client:
                 response = client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
