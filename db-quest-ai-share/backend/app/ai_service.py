@@ -1,156 +1,192 @@
-"""High-level AI domain service.
-
-Each method returns the same shape whether it is served by a live LLM provider
-or the offline mock generators. Routers depend only on this service, never on
-the provider directly.
-"""
 from __future__ import annotations
 
-import json
+from typing import Any
 
-from . import mock_ai
-from .ai_provider import provider
+from .ai_provider import AIProvider
+from .config import settings
+from .mock_ai import (
+    answer_question,
+    evaluate,
+    find_expert,
+    game_master,
+    generate_mission,
+    hint,
+    learning_report,
+    onboarding_plan,
+    summarize_document,
+)
+
+VALID_TOPICS = ("Cybersecurity", "Data Privacy", "Operational Risk", "Responsible AI")
+VALID_DIFFICULTIES = ("Beginner", "Intermediate", "Expert")
+
+
+def _coerce_mission(data: dict[str, Any], topic: str, difficulty: str) -> dict[str, Any] | None:
+    """Force an LLM mission into the exact schema the app needs, or return None.
+
+    Guarantees: 3-key choices with id/text/correct/risk/feedback, EXACTLY one
+    correct choice per step, and valid enum values. If the model output can't be
+    made valid, we return None so the caller falls back to the deterministic mock.
+    """
+    if not isinstance(data, dict):
+        return None
+    steps = data.get("steps")
+    if not isinstance(steps, list) or not steps:
+        return None
+
+    coerced_steps: list[dict[str, Any]] = []
+    for i, step in enumerate(steps):
+        if not isinstance(step, dict):
+            return None
+        choices = step.get("choices")
+        if not isinstance(choices, list) or len(choices) < 2:
+            return None
+        correct_count = 0
+        coerced_choices: list[dict[str, Any]] = []
+        for j, choice in enumerate(choices):
+            if not isinstance(choice, dict) or not choice.get("text"):
+                return None
+            is_correct = bool(choice.get("correct"))
+            correct_count += 1 if is_correct else 0
+            risk = choice.get("risk", "medium")
+            if risk not in ("low", "medium", "high"):
+                risk = "medium"
+            coerced_choices.append({
+                "id": choice.get("id") or f"s{i + 1}_c{j + 1}",
+                "text": str(choice["text"]),
+                "correct": is_correct,
+                "risk": risk,
+                "feedback": str(choice.get("feedback", "")) or (
+                    "A safe, compliant choice." if is_correct else "Reconsider — this option carries risk."
+                ),
+            })
+        if correct_count != 1:
+            return None
+        coerced_steps.append({
+            "id": step.get("id") or f"s{i + 1}",
+            "prompt": str(step.get("prompt", "Decide how to respond.")),
+            "clue": str(step.get("clue", "")),
+            "choices": coerced_choices,
+        })
+
+    chosen_topic = data.get("topic") if data.get("topic") in VALID_TOPICS else (
+        topic if topic in VALID_TOPICS else "Cybersecurity"
+    )
+    chosen_difficulty = data.get("difficulty") if data.get("difficulty") in VALID_DIFFICULTIES else (
+        difficulty if difficulty in VALID_DIFFICULTIES else "Beginner"
+    )
+    points = data.get("points")
+    if not isinstance(points, int):
+        points = {"Beginner": 100, "Intermediate": 200, "Expert": 300}[chosen_difficulty]
+    minutes = data.get("estimatedMinutes")
+    if not isinstance(minutes, int):
+        minutes = {"Beginner": 5, "Intermediate": 8, "Expert": 12}[chosen_difficulty]
+
+    return {
+        "id": data.get("id") or "",
+        "title": str(data.get("title", "Generated Mission")),
+        "topic": chosen_topic,
+        "difficulty": chosen_difficulty,
+        "points": points,
+        "estimatedMinutes": minutes,
+        "summary": str(data.get("summary", "A generated compliance scenario.")),
+        "briefing": str(data.get("briefing", "")),
+        "scenario": str(data.get("scenario", "")),
+        "objectives": [str(o) for o in data.get("objectives", []) if o] or ["Spot the red flags", "Choose the safe action"],
+        "steps": coerced_steps,
+        "learningPoints": [str(x) for x in data.get("learningPoints", []) if x] or ["Stay alert to social engineering."],
+        "policyRefs": [str(x) for x in data.get("policyRefs", []) if x] or ["Internal Security Policy"],
+        "clues": data.get("clues") if isinstance(data.get("clues"), dict) else {},
+        "generated": True,
+    }
 
 
 class AIService:
+    """Domain-level AI methods.
+
+    Each method returns an identical shape whether it is served by a live model
+    or the offline mock, so the routers never need to know which is active.
+    When a provider is configured, the live path is tried first and ANY error
+    falls back to the deterministic mock — the demo can never fully break.
+    """
+
     def __init__(self) -> None:
-        self.provider = provider
+        self.provider = AIProvider(settings.ai_provider, {
+            "api_key": (
+                settings.openai_api_key if settings.ai_provider == "openai"
+                else settings.gemini_api_key if settings.ai_provider == "gemini"
+                else settings.azure_api_key
+            ),
+            "endpoint": settings.azure_endpoint,
+            "openai_model": settings.openai_model,
+            "azure_deployment": settings.azure_deployment,
+            "azure_api_version": settings.azure_api_version,
+            "gemini_model": settings.gemini_model,
+        })
+        self.live = settings.provider_configured
 
-    @property
-    def live(self) -> bool:
-        return self.provider.live
+    # ---- Live-capable methods -------------------------------------------------
 
-    # ------------------------------------------------------------- missions
-    async def generate_mission(self, topic: str, audience: str, difficulty: str) -> dict:
-        if not self.live:
-            return mock_ai.generate_mission(topic, audience, difficulty)
-        system = (
-            "You are a compliance training designer for Deutsche Bank. Design a realistic, "
-            "interactive 'escape room' security mission. Keep it professional and non-punitive."
-        )
-        user = (
-            f"Create a mission. Topic: {topic}. Audience: {audience}. Difficulty: {difficulty}.\n"
-            "Return JSON with keys: title, topic (one of Cybersecurity/Data Privacy/Operational Risk/"
-            "Responsible AI), difficulty, points (int), estimatedMinutes (int), summary, briefing, "
-            "scenario, objectives (array), steps (array of {id, prompt, clue, choices:[{id,text,"
-            "correct(bool),risk(low|medium|high),feedback}]}), learningPoints (array), policyRefs "
-            "(array), clues (object mapping aspect->{finding,meaning}). Exactly one correct choice per step."
-        )
-        try:
-            data = await self.provider.chat_json(system, user)
-            return self._ensure_mission_shape(data, topic, audience, difficulty)
-        except Exception:
-            return mock_ai.generate_mission(topic, audience, difficulty)
+    def answer_question(self, question: str, chunks: list[dict[str, Any]]) -> dict[str, Any]:
+        # Sources and confidence always come from the retriever so citations stay faithful.
+        base = answer_question(question, chunks)
+        if settings.provider_configured and chunks:
+            try:
+                context = "\n\n".join(f"[{c.get('title')}] {c.get('text')}" for c in chunks)
+                system = (
+                    "You are a helpful internal colleague. Answer ONLY using the provided context. "
+                    "If the answer is not in the context, say you do not have that information."
+                )
+                prompt = f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer concisely in 3-5 sentences using only the context."
+                text = self.provider.chat(prompt, system=system)
+                self.live = self.provider.live
+                if text and text.strip():
+                    return {"answer": text.strip(), "sources": base["sources"], "confidence": base["confidence"]}
+            except Exception:
+                self.live = False
+        return base
 
-    def _ensure_mission_shape(self, data: dict, topic: str, audience: str, difficulty: str) -> dict:
-        fallback = mock_ai.generate_mission(topic, audience, difficulty)
-        for key, default in fallback.items():
-            data.setdefault(key, default)
-        import uuid
-        data["id"] = f"gen_{uuid.uuid4().hex[:8]}"
-        data["generated"] = True
-        # Guarantee each step has ids.
-        for i, step in enumerate(data.get("steps", []), start=1):
-            step.setdefault("id", f"step{i}")
-            for j, choice in enumerate(step.get("choices", [])):
-                choice.setdefault("id", chr(ord("A") + j))
-        return data
+    def generate_mission(self, topic: str, audience: str, difficulty: str) -> dict[str, Any]:
+        if settings.provider_configured:
+            try:
+                system = "You are a compliance training designer. Respond ONLY with a valid JSON object and no prose."
+                prompt = (
+                    "Create a compliance escape-room mission as a JSON object with these keys: "
+                    "title, topic, difficulty, summary, briefing, scenario, objectives (array), "
+                    "steps (array of exactly 3), learningPoints (array), policyRefs (array), clues (object). "
+                    "Each step has: id, prompt, clue, choices (array of exactly 3). "
+                    "Each choice has: id, text, correct (boolean), risk (one of low, medium, high), feedback. "
+                    "EXACTLY ONE choice per step must have correct=true. "
+                    f"topic must be one of Cybersecurity, Data Privacy, Operational Risk, Responsible AI (use '{topic}'). "
+                    f"difficulty must be '{difficulty}'. Audience: {audience}. Return only the JSON object."
+                )
+                data = self.provider.chat_json(prompt, system=system)
+                self.live = self.provider.live
+                mission = _coerce_mission(data, topic, difficulty)
+                if mission:
+                    return mission
+            except Exception:
+                self.live = False
+        return generate_mission(topic, audience, difficulty)
 
-    async def game_master(self, mission: dict, history: list[dict], message: str) -> dict:
-        if not self.live:
-            return mock_ai.game_master(mission, history, message)
-        system = (
-            "You are the AI Game Master of a Deutsche Bank security escape-room mission. Narrate "
-            "adaptively, never reveal the full answer, guide the player to inspect indicators, and "
-            "praise safe behaviour. Be concise (2-4 sentences)."
-        )
-        convo = "\n".join(f"{t['role']}: {t['content']}" for t in history[-8:])
-        user = (
-            f"Mission scenario: {mission.get('scenario')}\n"
-            f"Known indicators (clues): {json.dumps(mission.get('clues', {}))}\n"
-            f"Conversation so far:\n{convo}\n"
-            f"Player says: {message}\n"
-            "Reply as the Game Master. Then on new lines add 'SUGGESTIONS:' followed by up to 3 short "
-            "suggested next actions separated by '|'."
-        )
-        try:
-            raw = await self.provider.chat(system, user, temperature=0.7, max_tokens=400)
-            reply, suggestions = raw, []
-            if "SUGGESTIONS:" in raw:
-                reply, sugg = raw.split("SUGGESTIONS:", 1)
-                suggestions = [s.strip() for s in sugg.replace("\n", "|").split("|") if s.strip()][:3]
-            return {"reply": reply.strip(), "revealed": [], "suggestions": suggestions}
-        except Exception:
-            return mock_ai.game_master(mission, history, message)
+    # ---- Deterministic methods (always mock, by design) -----------------------
 
-    def hint(self, mission: dict, step_id: str | None, level: int) -> str:
-        # Hints are deterministic and instant either way.
-        return mock_ai.hint(mission, step_id, level)
+    def game_master(self, mission: dict[str, Any], history: list[dict[str, str]], message: str) -> dict[str, Any]:
+        return game_master(mission, history, message)
 
-    def evaluate(self, mission: dict, step: dict, choice: dict) -> dict:
-        return mock_ai.evaluate(mission, step, choice)
+    def hint(self, mission: dict[str, Any], step_id: str, level: int) -> dict[str, Any]:
+        return hint(mission, step_id, level)
 
-    async def learning_report(self, mission, decisions, hints_used, duration) -> dict:
-        return mock_ai.learning_report(mission, decisions, hints_used, duration)
+    def evaluate(self, mission: dict[str, Any], step: dict[str, Any], choice: dict[str, Any]) -> dict[str, Any]:
+        return evaluate(mission, step, choice)
 
-    # ---------------------------------------------------------- colleague
-    async def answer_question(self, question: str, chunks: list[tuple]) -> dict:
-        if not self.live:
-            return mock_ai.answer_question(question, chunks)
-        if not chunks:
-            return mock_ai.answer_question(question, chunks)
-        context = "\n\n".join(
-            f"[Source: {c.title}]\n{c.text}" for c, _ in chunks[:4]
-        )
-        system = (
-            "You are the AI Digital Colleague for a Deutsche Bank team. Answer ONLY from the provided "
-            "context. If it is not in the context, say so. Be concise and factual."
-        )
-        user = f"Context:\n{context}\n\nQuestion: {question}\nAnswer with a short, source-grounded response."
-        try:
-            answer = await self.provider.chat(system, user, temperature=0.3, max_tokens=500)
-            mock = mock_ai.answer_question(question, chunks)
-            return {"answer": answer.strip(), "sources": mock["sources"], "confidence": mock["confidence"]}
-        except Exception:
-            return mock_ai.answer_question(question, chunks)
+    def report(self, mission: dict[str, Any], decisions: list[dict[str, Any]], hints_used: int, duration: int) -> dict[str, Any]:
+        return learning_report(mission, decisions, hints_used, duration)
 
-    async def onboarding_plan(self, role: str, project: str, days: int) -> dict:
-        if not self.live:
-            return mock_ai.onboarding_plan(role, project, days)
-        system = "You are an onboarding buddy for a Deutsche Bank engineering team. Be practical."
-        user = (
-            f"Create a {days}-day onboarding plan for a {role} joining the {project} team. Return JSON "
-            "with keys: role, project, plan (array of {day, title, tasks[], resources[]}), keyContacts[], "
-            "glossary (array of {term, meaning})."
-        )
-        try:
-            data = await self.provider.chat_json(system, user)
-            data.setdefault("role", role)
-            data.setdefault("project", project)
-            if not data.get("plan"):
-                return mock_ai.onboarding_plan(role, project, days)
-            return data
-        except Exception:
-            return mock_ai.onboarding_plan(role, project, days)
+    def onboarding_plan(self, role: str, project: str, days: int) -> dict[str, Any]:
+        return onboarding_plan(role, project, days)
 
-    async def find_expert(self, query: str, experts: list[dict]) -> list[dict]:
-        # Deterministic ranking keeps this explainable and fair.
-        return mock_ai.find_expert(query, experts)
+    def find_expert(self, query: str, experts: list[dict[str, Any]]) -> dict[str, Any]:
+        return find_expert(query, experts)
 
-    async def summarize_document(self, title: str, text: str) -> dict:
-        if not self.live:
-            return mock_ai.summarize_document(title, text)
-        system = "You summarize enterprise documents for busy engineers. Be accurate and concise."
-        user = (
-            f"Summarize this document titled '{title}'. Return JSON with keys: title, summary, keyPoints[], "
-            f"decisions[], actionItems[], risks[], peopleMentioned[].\n\nDocument:\n{text[:6000]}"
-        )
-        try:
-            data = await self.provider.chat_json(system, user)
-            data.setdefault("title", title)
-            return data
-        except Exception:
-            return mock_ai.summarize_document(title, text)
-
-
-ai = AIService()
+    def summarize_document(self, title: str, text: str) -> dict[str, Any]:
+        return summarize_document(title, text)

@@ -1,51 +1,42 @@
-"""Loads and holds seed content (missions, acronyms, experts).
-
-Generated missions are kept in-memory for the session so they can be played
-immediately after the admin creates them.
-"""
 from __future__ import annotations
 
 import json
-import os
-
-from .config import settings
-
-
-def _load_json(filename: str, default):
-    path = os.path.join(settings.data_dir, filename)
-    if not os.path.exists(path):
-        return default
-    with open(path, "r", encoding="utf-8") as fh:
-        return json.load(fh)
+from pathlib import Path
+from typing import Any
 
 
-class ContentRepository:
-    def __init__(self) -> None:
-        self._missions: dict[str, dict] = {}
-        self.acronyms: dict[str, dict] = {}
-        self.experts: list[dict] = []
+class ContentStore:
+    def __init__(self, data_dir: Path) -> None:
+        self.data_dir = data_dir
+        self.missions_path = data_dir / "missions.json"
+        self.acronyms_path = data_dir / "acronyms.json"
+        self.experts_path = data_dir / "experts.json"
+        self.missions = []
+        self.acronyms = []
+        self.experts = []
+        self.generated_missions = []
+        self._load()
 
-    def load(self) -> None:
-        missions = _load_json("missions.json", [])
-        self._missions = {m["id"]: m for m in missions}
-        acronyms = _load_json("acronyms.json", {})
-        # Normalise keys to upper-case for lookup.
-        self.acronyms = {k.upper(): v for k, v in acronyms.items()}
-        self.experts = _load_json("experts.json", [])
+    def _load(self) -> None:
+        self.missions = json.loads(self.missions_path.read_text(encoding="utf-8"))
+        self.acronyms = json.loads(self.acronyms_path.read_text(encoding="utf-8"))
+        self.experts = json.loads(self.experts_path.read_text(encoding="utf-8"))
 
-    # ---------------------------------------------------------- missions
-    def list_missions(self) -> list[dict]:
-        return list(self._missions.values())
+    def list_missions(self) -> list[dict[str, Any]]:
+        return self.missions + self.generated_missions
 
-    def get_mission(self, mission_id: str) -> dict | None:
-        return self._missions.get(mission_id)
+    def get_mission(self, mission_id: str) -> dict[str, Any] | None:
+        for mission in self.list_missions():
+            if mission["id"] == mission_id:
+                return mission
+        return None
 
-    def add_mission(self, mission: dict) -> None:
-        self._missions[mission["id"]] = mission
+    def add_generated_mission(self, mission: dict[str, Any]) -> None:
+        mission["id"] = mission.get("id") or f"generated-{len(self.generated_missions) + 1}"
+        self.generated_missions.append(mission)
 
-    # ---------------------------------------------------------- acronyms
-    def get_acronym(self, term: str) -> dict | None:
-        return self.acronyms.get(term.upper())
+    def list_acronyms(self) -> list[dict[str, Any]]:
+        return self.acronyms
 
-
-content = ContentRepository()
+    def list_experts(self) -> list[dict[str, Any]]:
+        return self.experts

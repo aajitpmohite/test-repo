@@ -1,151 +1,148 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { api } from '../api'
-import { ArrowRightIcon, SparkIcon } from '../components/icons'
-import { DifficultyBadge, PageHeader, RichText, Spinner, TopicBadge } from '../components/ui'
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { apiPost } from '../api';
+import { useToast } from '../context/ToastContext';
+import { PageHeader, Spinner, EmptyState, DifficultyBadge, TopicBadge } from '../components/ui';
+import { GenerateIcon, SparkIcon, ArrowRightIcon, AlertIcon, BookIcon } from '../components/icons';
 
-const EXAMPLES = [
-  'Using confidential data in external AI tools',
-  'Phishing email from a fake senior manager',
-  'Sharing credentials over the phone',
-  'Vendor invoice fraud',
-  'Tailgating into a secure office',
-]
+const topics = ['Cybersecurity', 'Data Privacy', 'Operational Risk', 'Responsible AI'];
+const difficulties = ['Beginner', 'Intermediate', 'Expert'];
 
 export default function AdminGenerator() {
-  const [topic, setTopic] = useState('')
-  const [audience, setAudience] = useState('New joiners')
-  const [difficulty, setDifficulty] = useState('Intermediate')
-  const [loading, setLoading] = useState(false)
-  const [mission, setMission] = useState(null)
-  const [error, setError] = useState('')
+  const toast = useToast();
+  const [topic, setTopic] = useState('Cybersecurity');
+  const [audience, setAudience] = useState('team member');
+  const [difficulty, setDifficulty] = useState('Beginner');
+  const [mission, setMission] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   async function generate(e) {
-    e?.preventDefault()
-    if (!topic.trim() || loading) return
-    setLoading(true)
-    setError('')
-    setMission(null)
+    e?.preventDefault();
+    setLoading(true);
     try {
-      const m = await api.generateMission({ topic, audience, difficulty })
-      setMission(m)
+      const result = await apiPost('/api/missions/generate', { topic, audience, difficulty });
+      setMission(result);
+      toast.success('Mission created and saved to your team.');
     } catch (err) {
-      setError(err.message)
+      toast.error(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
-        icon={SparkIcon}
-        title="AI Mission Generator"
-        subtitle="Admin tool — turn any policy, process or risk topic into a playable, adaptive escape-room mission."
+        eyebrow="Escape Missions"
+        title="Mission Generator"
+        subtitle="Spin up a fresh three-step compliance scenario on demand — preview it, then play it immediately."
+        icon={<GenerateIcon className="h-6 w-6" />}
       />
 
-      <div className="grid gap-5 lg:grid-cols-5">
-        <form onSubmit={generate} className="card space-y-4 p-6 lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+        <form onSubmit={generate} className="card h-fit space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-600">Topic</label>
-            <textarea
-              className="textarea"
-              rows={3}
-              placeholder="e.g. Using confidential data in external AI tools"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {EXAMPLES.map((ex) => (
-              <button key={ex} type="button" className="chip" onClick={() => setTopic(ex)}>
-                {ex}
-              </button>
-            ))}
+            <label className="label">Topic</label>
+            <select className="select" value={topic} onChange={(e) => setTopic(e.target.value)}>
+              {topics.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-600">Audience</label>
+            <label className="label">Audience</label>
             <input
               className="input"
               value={audience}
               onChange={(e) => setAudience(e.target.value)}
-              placeholder="New joiners"
+              placeholder="e.g. new analysts"
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-600">Difficulty</label>
+            <label className="label">Difficulty</label>
             <select className="select" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-              <option>Beginner</option>
-              <option>Intermediate</option>
-              <option>Expert</option>
+              {difficulties.map((d) => (
+                <option key={d}>{d}</option>
+              ))}
             </select>
           </div>
-          <button type="submit" className="btn-primary w-full" disabled={loading || !topic.trim()}>
+          <button className="btn-primary w-full" disabled={loading}>
             {loading ? <Spinner className="h-4 w-4" /> : <SparkIcon className="h-4 w-4" />}
             {loading ? 'Generating…' : 'Generate mission'}
           </button>
-          {error && <p className="text-sm text-rose-600">{error}</p>}
+          <p className="text-xs leading-relaxed text-faint">
+            In offline mode this uses deterministic archetypes keyed off your topic. With a live provider configured, it
+            calls the model and coerces the result into the mission schema.
+          </p>
         </form>
 
-        <div className="lg:col-span-3">
-          {!mission && !loading && (
-            <div className="card flex h-full flex-col items-center justify-center p-10 text-center text-slate-400">
-              <SparkIcon className="h-10 w-10" />
-              <p className="mt-3 font-medium text-slate-500">Your generated mission preview appears here</p>
-              <p className="mt-1 text-sm">Enter a topic and let AI design the scenario, choices and learning points.</p>
+        <div>
+          {loading ? (
+            <div className="card flex items-center justify-center gap-3 py-24 text-muted">
+              <Spinner /> Building your mission…
             </div>
-          )}
-          {loading && (
-            <div className="card flex h-full flex-col items-center justify-center p-10 text-brand-600">
-              <Spinner className="h-8 w-8" />
-              <p className="mt-3 text-sm text-slate-500">AI is designing the mission…</p>
-            </div>
-          )}
-          {mission && (
-            <div className="card animate-in p-6">
-              <div className="flex flex-wrap items-center gap-2">
-                <TopicBadge topic={mission.topic} />
-                <DifficultyBadge level={mission.difficulty} />
-                <span className="badge bg-brand-100 text-brand-700">
-                  <SparkIcon className="h-3 w-3" /> AI-generated
-                </span>
+          ) : mission ? (
+            <div className="card animate-fade-in space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold text-strong">{mission.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted">{mission.summary}</p>
+                </div>
               </div>
-              <h2 className="mt-3 text-xl font-bold text-ink">{mission.title}</h2>
-              <RichText text={mission.briefing} className="mt-2 text-sm text-slate-600" />
+              <div className="flex flex-wrap gap-2">
+                <TopicBadge topic={mission.topic} />
+                <DifficultyBadge difficulty={mission.difficulty} />
+                <span className="badge">{mission.points} pts</span>
+                <span className="badge border-brand-400/25 bg-brand-500/10 text-accent">AI generated</span>
+              </div>
 
-              <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                Steps ({mission.steps.length})
-              </h3>
-              <ol className="mt-2 space-y-2">
-                {mission.steps.map((s, i) => (
-                  <li key={s.id} className="rounded-xl bg-slate-50 p-3 text-sm">
-                    <span className="font-semibold text-slate-700">
-                      {i + 1}. {s.prompt}
-                    </span>
-                    <span className="mt-1 block text-slate-400">{s.choices.length} options</span>
-                  </li>
+              <div className="divider" />
+
+              <div className="space-y-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-faint">Steps</p>
+                {mission.steps.map((step, i) => (
+                  <div key={step.id} className="surface-inset">
+                    <p className="flex items-center gap-2 font-medium text-strong">
+                      <span className="flex h-5 w-5 items-center justify-center rounded bg-brand-500/20 text-[10px] font-bold text-accent">
+                        {i + 1}
+                      </span>
+                      {step.prompt}
+                    </p>
+                    <p className="mt-1.5 flex items-start gap-2 text-sm text-muted">
+                      <AlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-300" />
+                      {step.clue}
+                    </p>
+                  </div>
                 ))}
-              </ol>
+              </div>
 
-              <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                Learning points
-              </h3>
-              <ul className="mt-2 space-y-1 text-sm text-slate-600">
-                {mission.learningPoints.map((p, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-brand-500" />
-                    {p}
-                  </li>
-                ))}
-              </ul>
+              {mission.learningPoints?.length ? (
+                <div className="surface-inset">
+                  <p className="flex items-center gap-2 font-semibold text-strong">
+                    <BookIcon className="h-4 w-4 text-accent" /> Learning points
+                  </p>
+                  <ul className="mt-2 space-y-1.5 text-sm text-muted">
+                    {mission.learningPoints.map((lp) => (
+                      <li key={lp}>• {lp}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
-              <Link to={`/missions/${mission.id}`} className="btn-primary mt-6">
+              <button className="btn-primary" onClick={() => navigate(`/missions/play/${mission.id}`)}>
                 Play this mission <ArrowRightIcon className="h-4 w-4" />
-              </Link>
+              </button>
             </div>
+          ) : (
+            <EmptyState
+              title="No mission generated yet"
+              text="Choose a topic, audience, and difficulty, then generate to preview the steps and learning points."
+              icon={<GenerateIcon className="h-6 w-6" />}
+            />
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }

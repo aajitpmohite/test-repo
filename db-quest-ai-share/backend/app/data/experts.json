@@ -1,44 +1,44 @@
 [
   {
-    "name": "Priya Sharma",
-    "role": "Tech Lead — Payments Platform",
-    "topics": ["architecture", "system design", "payments", "api", "data flow", "integration"],
-    "owns": ["Architecture Summary", "API design guidelines"],
-    "contact": "priya.sharma@example.db.com"
+    "name": "Ava Chen",
+    "role": "Platform Lead",
+    "topics": ["platform", "delivery", "onboarding"],
+    "owns": "Platform readiness",
+    "contact": "ava.chen@dbquest.local"
   },
   {
-    "name": "Marcus Weber",
+    "name": "Ravi Shah",
     "role": "Release Manager",
-    "topics": ["deployment", "release", "change approval", "pipeline", "cutover", "rollback"],
-    "owns": ["Production Deployment Checklist", "Release Notes"],
-    "contact": "marcus.weber@example.db.com"
+    "topics": ["release", "governance", "risk"],
+    "owns": "Release governance",
+    "contact": "ravi.shah@dbquest.local"
   },
   {
-    "name": "Aisha Khan",
-    "role": "Support Lead — Production",
-    "topics": ["incident", "support", "on-call", "production issues", "monitoring", "sla", "batch"],
-    "owns": ["Support & Incident Guide"],
-    "contact": "aisha.khan@example.db.com"
+    "name": "Mina Alvarez",
+    "role": "Security Specialist",
+    "topics": ["security", "phishing", "incident response"],
+    "owns": "Cyber resilience",
+    "contact": "mina.alvarez@dbquest.local"
   },
   {
-    "name": "David Okoro",
-    "role": "Data Engineer",
-    "topics": ["etl", "data pipeline", "batch", "database", "schema", "data quality"],
-    "owns": ["ETL runbook"],
-    "contact": "david.okoro@example.db.com"
+    "name": "Daniel Park",
+    "role": "Privacy Lead",
+    "topics": ["privacy", "data handling", "client data"],
+    "owns": "Privacy program",
+    "contact": "daniel.park@dbquest.local"
   },
   {
-    "name": "Elena Rossi",
-    "role": "Information Security Partner",
-    "topics": ["security", "phishing", "access", "controls", "risk", "compliance", "data privacy"],
-    "owns": ["Security controls catalogue"],
-    "contact": "elena.rossi@example.db.com"
+    "name": "Nadia Okafor",
+    "role": "Responsible AI Steward",
+    "topics": ["responsible ai", "governance", "ethics"],
+    "owns": "AI guardrails",
+    "contact": "nadia.okafor@dbquest.local"
   },
   {
-    "name": "Tom Becker",
-    "role": "Onboarding Buddy / Senior Engineer",
-    "topics": ["onboarding", "environment setup", "access", "getting started", "glossary"],
-    "owns": ["Onboarding Guide"],
-    "contact": "tom.becker@example.db.com"
+    "name": "Samir Patel",
+    "role": "Support Operations Manager",
+    "topics": ["support", "operations", "service levels"],
+    "owns": "Support coordination",
+    "contact": "samir.patel@dbquest.local"
   }
 ]

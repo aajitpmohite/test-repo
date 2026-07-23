@@ -1,87 +1,298 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&family=Special+Elite&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html,
-  body,
-  #root {
-    height: 100%;
+  /* ---- Light theme (default) ---- */
+  :root {
+    color-scheme: light;
+    --app: 244 246 251;
+    --card: 255 255 255;
+    --inset: 240 243 249;
+    --elevated: 233 237 245;
+    --line: 224 229 238;
+    --text-strong: 15 23 42;
+    --text-body: 51 65 85;
+    --text-muted: 100 116 139;
+    --text-faint: 148 163 184;
+    --accent: 64 86 230;
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 30px -14px rgba(15, 23, 42, 0.16);
+    --shadow-card-hover: 0 1px 2px rgba(15, 23, 42, 0.06), 0 18px 40px -16px rgba(79, 107, 255, 0.28);
+    --hero-overlay-1: rgba(79, 107, 255, 0.1);
+    --hero-overlay-2: rgba(59, 130, 246, 0.07);
   }
+
+  /* ---- Dark theme ---- */
+  [data-theme='dark'] {
+    color-scheme: dark;
+    --app: 8 12 23;
+    --card: 13 20 36;
+    --inset: 6 9 18;
+    --elevated: 22 32 58;
+    --line: 40 50 70;
+    --text-strong: 248 250 252;
+    --text-body: 203 213 225;
+    --text-muted: 148 163 184;
+    --text-faint: 100 116 139;
+    --accent: 165 180 252;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 30px -14px rgba(0, 0, 0, 0.55);
+    --shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.25), 0 18px 40px -16px rgba(79, 107, 255, 0.35);
+    --hero-overlay-1: rgba(79, 107, 255, 0.14);
+    --hero-overlay-2: rgba(59, 130, 246, 0.1);
+  }
+
+  * {
+    @apply border-line;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-slate-50 text-ink antialiased;
+    @apply bg-app text-body antialiased;
+    margin: 0;
+    min-height: 100vh;
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background-image:
+      radial-gradient(60rem 40rem at 110% -10%, var(--hero-overlay-1), transparent 60%),
+      radial-gradient(50rem 40rem at -10% 10%, var(--hero-overlay-2), transparent 55%);
+    background-attachment: fixed;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tight text-strong;
+  }
+
+  ::selection {
+    @apply bg-brand-500/30 text-strong;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: rgb(var(--text-faint) / 0.35);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--text-faint) / 0.55);
+    background-clip: padding-box;
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl bg-white shadow-card border border-slate-100;
+    @apply rounded-2xl border border-line bg-card p-6 shadow-card;
+  }
+
+  .card-interactive {
+    @apply card transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-card-hover;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
-           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:cursor-not-allowed disabled:opacity-50;
   }
+
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm active:scale-[.98];
+    @apply btn bg-brand-500 text-white shadow-[0_6px_20px_-8px_rgba(79,107,255,0.8)] hover:bg-brand-400 active:bg-brand-600;
   }
+
   .btn-outline {
-    @apply btn border border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:text-brand-700;
+    @apply btn border border-line bg-elevated text-body hover:border-brand-500/40 hover:text-strong;
   }
+
   .btn-ghost {
-    @apply btn text-slate-600 hover:bg-slate-100;
+    @apply btn bg-transparent text-muted hover:bg-elevated hover:text-strong;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
   }
 
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-elevated px-2.5 py-1 text-xs font-semibold text-muted;
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted;
   }
 
   .input,
   .textarea,
   .select {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-ink
-           placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100;
+    @apply w-full rounded-xl border border-line bg-inset px-3.5 py-2.5 text-sm text-strong outline-none transition placeholder:text-faint focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20;
   }
+
   .textarea {
-    @apply resize-none;
+    @apply resize-y leading-relaxed;
+  }
+
+  .select {
+    @apply cursor-pointer appearance-none bg-[length:1.1rem] bg-[right_0.75rem_center] bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   }
 
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5
-           text-xs font-medium text-slate-600 hover:border-brand-300 hover:text-brand-700 cursor-pointer transition;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-brand-500/25 bg-brand-500/10 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-brand-400/50 hover:bg-brand-500/20 hover:text-strong;
   }
 
   .nav-link {
-    @apply flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-300
-           hover:bg-white/10 hover:text-white transition-colors;
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-all duration-200 hover:bg-elevated hover:text-strong;
   }
+
   .nav-link-active {
-    @apply bg-white/15 text-white;
+    @apply bg-brand-500/[0.12] text-strong shadow-[inset_0_0_0_1px_rgba(79,107,255,0.25)];
+  }
+
+  .surface-inset {
+    @apply rounded-xl border border-line bg-inset p-4;
+  }
+
+  .divider {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-line to-transparent;
   }
 }
 
-/* Slim scrollbars */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400;
+@layer utilities {
+  .text-gradient {
+    background-image: linear-gradient(100deg, rgb(var(--text-strong)), rgb(var(--accent)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-elevated;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    animation: shimmer 1.6s infinite;
+    background-image: linear-gradient(90deg, transparent, rgb(var(--text-faint) / 0.12), transparent);
+  }
 }
 
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ============================================================
+   Escape-room theme primitives — used ONLY by the mission zone
+   (Missions + MissionPlay). Warm, dim, atmospheric. Scoped .escape.
+   ============================================================ */
+.font-display {
+  font-family: 'Oswald', 'Inter', sans-serif;
+  letter-spacing: 0.01em;
 }
-.animate-in {
-  animation: fade-in-up 0.25s ease-out both;
+.font-type {
+  font-family: 'Special Elite', 'Courier New', monospace;
 }
+
+.escape {
+  color: #e7e5e4; /* stone-200 */
+}
+
+/* Dim room lit by a warm overhead lamp, with a heavy vignette */
+.er-bg {
+  position: relative;
+  background:
+    radial-gradient(80% 55% at 50% -8%, rgba(245, 158, 11, 0.16), transparent 60%),
+    radial-gradient(70% 60% at 100% 110%, rgba(180, 83, 9, 0.12), transparent 60%),
+    radial-gradient(60% 60% at 0% 100%, rgba(20, 83, 45, 0.10), transparent 60%),
+    #0c0a09; /* stone-950 warm */
+}
+/* Soft dust / paper grain */
+.er-grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.015) 0, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 6px);
+  pointer-events: none;
+  opacity: 0.6;
+}
+/* Heavy edge vignette so the room feels enclosed */
+.er-vignette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 200px 30px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Warm lamp flicker */
+@keyframes erLamp {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 1; }
+  49% { opacity: 0.82; }
+  51% { opacity: 1; }
+  93% { opacity: 0.9; }
+  95% { opacity: 1; }
+}
+.er-lamp { animation: erLamp 7s infinite; }
+
+/* Aged metal/paper panel with warm corner rivets */
+.clue-frame {
+  position: relative;
+  border: 1px solid rgba(168, 162, 158, 0.16);
+  background: linear-gradient(180deg, rgba(28, 25, 23, 0.86), rgba(12, 10, 9, 0.86));
+  backdrop-filter: blur(4px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 0 40px rgba(0, 0, 0, 0.4);
+}
+.clue-frame::before,
+.clue-frame::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: rgba(245, 158, 11, 0.55);
+  pointer-events: none;
+}
+.clue-frame::before { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+.clue-frame::after { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+
+.stamp-label {
+  font-family: 'Special Elite', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 10px;
+}
+
+.er-glow-amber { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14), 0 0 14px rgba(245, 158, 11, 0.7); }
+.er-glow-green { box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.16), 0 0 14px rgba(52, 211, 153, 0.8); }
+
+@keyframes erShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.er-shake { animation: erShake 0.42s ease-in-out; }
+
+/* Padlock "click open" pop */
+@keyframes erUnlock {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.25) rotate(-8deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.er-unlock { animation: erUnlock 0.5s ease-out; }
+
+.er-scroll::-webkit-scrollbar { width: 8px; }
+.er-scroll::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.25); border-radius: 9999px; }

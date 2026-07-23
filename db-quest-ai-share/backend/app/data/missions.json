@@ -1,317 +1,242 @@
 [
   {
-    "id": "phishing_001",
+    "id": "mission-1",
     "title": "Phishing at 5 PM",
     "topic": "Cybersecurity",
     "difficulty": "Beginner",
-    "points": 100,
-    "estimatedMinutes": 7,
-    "summary": "A last-minute Teams message from 'IT Support' asks for your token code. Can you avoid the trap?",
-    "briefing": "It is 5 PM and you are wrapping up for the day while working from home. A Teams message pops up from someone claiming to be from IT Support: 'Your access will expire today. Please share your token code now to avoid account lockout.' The pressure is on. Investigate and escape safely.",
-    "scenario": "Threat vector: Teams direct message impersonating IT Support. The request is to share an MFA token/OTP code under time pressure to 'avoid lockout'. Red flags: unsolicited contact, request for credentials/token, manufactured urgency, external/guest account.",
-    "objectives": [
-      "Recognise that IT will never ask for your token or password",
-      "Identify the social-engineering red flags",
-      "Report the attempt through the correct channel"
-    ],
+    "points": 180,
+    "estimatedMinutes": 12,
+    "summary": "A fake IT-support message asks for an MFA token under pressure.",
+    "briefing": "The request appears urgent and comes from a familiar-looking channel.",
+    "scenario": "A colleague receives an email that looks like a legitimate IT support request. The email asks for an MFA token to restore access before a meeting.",
+    "objectives": ["Spot the social engineering cues", "Protect account credentials", "Escalate appropriately"],
     "steps": [
       {
-        "id": "step1",
-        "prompt": "The 'IT Support' contact insists you share your token code in the next few minutes or be locked out. What is your first move?",
-        "clue": "Genuine IT support never needs your token, password or OTP to help you.",
+        "id": "s1",
+        "prompt": "Step 1: What should you do first?",
+        "clue": "The sender is slightly off.",
         "choices": [
-          {"id": "A", "text": "Share the token quickly so you don't get locked out", "correct": false, "risk": "high", "feedback": "Never share tokens or OTPs. This is exactly how accounts get compromised."},
-          {"id": "B", "text": "Ignore the message and log off", "correct": false, "risk": "medium", "feedback": "Ignoring it protects you, but the attacker will simply try the next colleague."},
-          {"id": "C", "text": "Verify the sender's identity and report the suspicious activity", "correct": true, "risk": "low", "feedback": "Correct. Verify independently and report — you protect yourself and others."},
-          {"id": "D", "text": "Forward the message to a teammate to ask what to do", "correct": false, "risk": "medium", "feedback": "Forwarding can spread the lure and leak details. Report it instead."}
+          {"id": "s1_c1", "text": "Reply with the MFA token to restore access", "correct": false, "risk": "high", "feedback": "Never share credentials under pressure."},
+          {"id": "s1_c2", "text": "Open the support portal and verify the request through official channels", "correct": true, "risk": "low", "feedback": "That is the safe and correct response."},
+          {"id": "s1_c3", "text": "Forward it to your team chat without confirmation", "correct": false, "risk": "medium", "feedback": "The request still needs verification."}
         ]
       },
       {
-        "id": "step2",
-        "prompt": "You take a closer look at the sender before doing anything. Which detail is the strongest evidence this is an attack?",
-        "clue": "Focus on WHO is really messaging you and WHAT they are asking for.",
+        "id": "s2",
+        "prompt": "Step 2: What should you do next?",
+        "clue": "The urgency is a tactic.",
         "choices": [
-          {"id": "A", "text": "They used my first name, so it feels personal and genuine", "correct": false, "risk": "medium", "feedback": "Your name is easy to find and is not proof of identity."},
-          {"id": "B", "text": "The account is an external/guest user, and IT is asking for my token code", "correct": true, "risk": "low", "feedback": "Correct. An external account asking for credentials is a decisive red flag."},
-          {"id": "C", "text": "The message has no spelling mistakes, so it must be real", "correct": false, "risk": "high", "feedback": "Modern phishing is well written. Good grammar proves nothing."},
-          {"id": "D", "text": "It is urgent, so I should act faster to be safe", "correct": false, "risk": "high", "feedback": "Urgency is the manipulation — it is a reason to slow down, not speed up."}
+          {"id": "s2_c1", "text": "Ignore the email because it is too much effort", "correct": false, "risk": "medium", "feedback": "The issue needs escalation, not dismissal."},
+          {"id": "s2_c2", "text": "Report the suspicious message and keep evidence", "correct": true, "risk": "low", "feedback": "Good. Reporting protects the wider team."},
+          {"id": "s2_c3", "text": "Click the link to confirm the notice", "correct": false, "risk": "high", "feedback": "Do not click unverified links."}
         ]
       },
       {
-        "id": "step3",
-        "prompt": "You are confident this is a phishing attempt. How do you resolve it correctly?",
-        "clue": "Use the official reporting path; do not engage the attacker.",
+        "id": "s3",
+        "prompt": "Step 3: Which action best protects the organization?",
+        "clue": "The channel is an unusual route for an IT request.",
         "choices": [
-          {"id": "A", "text": "Reply and ask them to prove they are really from IT", "correct": false, "risk": "medium", "feedback": "Engaging confirms your account is active and invites more attempts."},
-          {"id": "B", "text": "Report the message via the official 'Report Phishing' channel and block the sender", "correct": true, "risk": "low", "feedback": "Correct. Reporting lets Security protect the whole organisation."},
-          {"id": "C", "text": "Delete it quietly and tell no one", "correct": false, "risk": "medium", "feedback": "Silent deletion means colleagues stay exposed to the same attack."},
-          {"id": "D", "text": "Share the token but change it right after", "correct": false, "risk": "high", "feedback": "Once shared, the attacker can act instantly. The damage is done."}
+          {"id": "s3_c1", "text": "Call the help desk using the known number", "correct": true, "risk": "low", "feedback": "That is the best protective action."},
+          {"id": "s3_c2", "text": "Send the email to a client", "correct": false, "risk": "high", "feedback": "That would spread the risk."},
+          {"id": "s3_c3", "text": "Reply all with the concern", "correct": false, "risk": "medium", "feedback": "That can create confusion and expose others."}
         ]
       }
     ],
-    "learningPoints": [
-      "IT will never ask for your password, token or OTP — anyone who does is an attacker.",
-      "Unsolicited contact + urgency + a request for credentials is a classic phishing pattern.",
-      "Report suspicious messages through the official channel and block the sender.",
-      "Verifying independently, via a known contact, breaks the attack."
-    ],
-    "policyRefs": ["Information Security & Anti-Phishing Policy", "Acceptable Use Policy"],
-    "clues": {
-      "sender": {"finding": "The Teams account is an external/guest user, not an internal colleague", "meaning": "IT Support requests never come from external guest accounts."},
-      "request": {"finding": "They are asking for your MFA token/OTP code", "meaning": "no legitimate process ever needs your token — this alone confirms an attack."},
-      "urgency": {"finding": "You are told to act 'in the next few minutes' to avoid lockout", "meaning": "manufactured urgency is designed to stop you thinking."},
-      "channel": {"finding": "IT is reaching out via unsolicited DM rather than the official Service Desk", "meaning": "verify through the known Service Desk channel instead."}
-    }
+    "learningPoints": ["Verify requests through official channels", "Do not share MFA tokens", "Report suspicious requests quickly"],
+    "policyRefs": ["Password and MFA handling", "Phishing response policy"],
+    "clues": {"sender": {"finding": "The sender domain is slightly altered", "meaning": "The message is impersonating IT support"}, "urgency": {"finding": "The message pressures you to act before a meeting", "meaning": "The urgency is a manipulation tactic"}, "request": {"finding": "The request asks for an MFA token", "meaning": "That is exactly what attackers want"}},
+    "generated": false
   },
   {
-    "id": "dataleak_002",
+    "id": "mission-2",
     "title": "Confidential File Leak",
     "topic": "Data Privacy",
     "difficulty": "Intermediate",
-    "points": 150,
-    "estimatedMinutes": 9,
-    "summary": "A stressed colleague asks you to email a client data export to their personal address. Do you help?",
-    "briefing": "A colleague messages you close to a deadline: 'Can you export the full client list and send it to my personal Gmail? I'll finish the analysis tonight at home — otherwise I'll get in trouble.' They are counting on you. What do you do?",
-    "scenario": "Threat vector: internal request to exfiltrate confidential client data to a personal email account. The file contains names, account numbers and balances (Confidential / Personal data). Red flags: personal email destination, confidential client data, no approval, deadline pressure.",
-    "objectives": [
-      "Classify the data correctly",
-      "Recognise an unapproved external data transfer",
-      "Escalate to the right control owners"
-    ],
+    "points": 220,
+    "estimatedMinutes": 16,
+    "summary": "A colleague wants a client export emailed to personal Gmail.",
+    "briefing": "The request initially feels harmless but involves regulated client data.",
+    "scenario": "A teammate asks whether a large client export can be emailed to a personal Gmail account for a quick review outside the approved environment.",
+    "objectives": ["Identify a data handling breach", "Use approved channels", "Protect client confidentiality"],
     "steps": [
       {
-        "id": "step1",
-        "prompt": "Your colleague needs the client export sent to their personal email tonight. What do you do first?",
-        "clue": "Before moving any file, ask: what data is in it, and where is it going?",
+        "id": "s1",
+        "prompt": "Step 1: What is the first issue?",
+        "clue": "The destination is personal email.",
         "choices": [
-          {"id": "A", "text": "Export and send it — they're on the team and it's urgent", "correct": false, "risk": "high", "feedback": "Sending confidential data to a personal account is a data leak, regardless of intent."},
-          {"id": "B", "text": "Pause and check how the data is classified and where it's going", "correct": true, "risk": "low", "feedback": "Correct. Classification and destination determine whether this is allowed."},
-          {"id": "C", "text": "Send just a 'small sample' to be helpful", "correct": false, "risk": "high", "feedback": "Even a sample of client records leaving managed systems is a breach."},
-          {"id": "D", "text": "Upload it to a public file-sharing link instead", "correct": false, "risk": "high", "feedback": "Public links are worse — anyone with the URL can access confidential data."}
+          {"id": "s1_c1", "text": "Send the file to personal Gmail and proceed", "correct": false, "risk": "high", "feedback": "That is not permitted for regulated client data."},
+          {"id": "s1_c2", "text": "Use the approved secure transfer path and request a compliant route", "correct": true, "risk": "low", "feedback": "Correct. Approved systems protect the data."},
+          {"id": "s1_c3", "text": "Download it to a local desktop and keep working", "correct": false, "risk": "medium", "feedback": "That still bypasses the control."}
         ]
       },
       {
-        "id": "step2",
-        "prompt": "You inspect the file. Which fact makes this request unacceptable?",
-        "clue": "Look at the content of the file and the destination together.",
+        "id": "s2",
+        "prompt": "Step 2: Which is the best follow-up?",
+        "clue": "The request is to export a lot of data.",
         "choices": [
-          {"id": "A", "text": "The file contains client names, account numbers and balances, and it's going to a personal Gmail", "correct": true, "risk": "low", "feedback": "Correct. Confidential/personal data must never leave managed systems for personal accounts."},
-          {"id": "B", "text": "The file is quite large to email", "correct": false, "risk": "medium", "feedback": "Size is not the issue — the confidentiality and destination are."},
-          {"id": "C", "text": "It's after working hours", "correct": false, "risk": "medium", "feedback": "The time of day doesn't change the data protection rules."},
-          {"id": "D", "text": "Nothing — they'll delete it after using it", "correct": false, "risk": "high", "feedback": "A promise to delete does not make an unauthorised transfer acceptable."}
+          {"id": "s2_c1", "text": "Ask the colleague to reduce the data set and use the safe channel", "correct": true, "risk": "low", "feedback": "That is the right balance of flexibility and control."},
+          {"id": "s2_c2", "text": "Share the data with the colleague over chat", "correct": false, "risk": "high", "feedback": "That compounds the exposure."},
+          {"id": "s2_c3", "text": "Forward the export to a third party", "correct": false, "risk": "high", "feedback": "That is not acceptable."}
         ]
       },
       {
-        "id": "step3",
-        "prompt": "How do you handle this the right way?",
-        "clue": "Offer a safe alternative and involve the right people.",
+        "id": "s3",
+        "prompt": "Step 3: What should you do to prevent a recurrence?",
+        "clue": "The request is time pressured.",
         "choices": [
-          {"id": "A", "text": "Refuse politely, suggest doing the work inside approved systems, and flag it to your manager/DPO", "correct": true, "risk": "low", "feedback": "Correct. Protect the data, help the colleague safely, and escalate appropriately."},
-          {"id": "B", "text": "Send it this once but warn them not to ask again", "correct": false, "risk": "high", "feedback": "A single unauthorised transfer is still a reportable data leak."},
-          {"id": "C", "text": "Do nothing and hope they find another way", "correct": false, "risk": "medium", "feedback": "Doing nothing risks the colleague leaking it via someone else."},
-          {"id": "D", "text": "Password-protect the file and then email it to Gmail", "correct": false, "risk": "high", "feedback": "A password doesn't authorise sending confidential data to a personal account."}
+          {"id": "s3_c1", "text": "Escalate to the data owner and document the exception", "correct": true, "risk": "low", "feedback": "A documented exception protects everyone."},
+          {"id": "s3_c2", "text": "Approve the transfer despite the policy", "correct": false, "risk": "high", "feedback": "That is risky and not aligned to policy."},
+          {"id": "s3_c3", "text": "Keep the export in your inbox for later", "correct": false, "risk": "medium", "feedback": "That is not a control response."}
         ]
       }
     ],
-    "learningPoints": [
-      "Confidential/personal client data must never be sent to personal email or public links.",
-      "Deadline pressure does not override data protection controls.",
-      "Offer a safe alternative: keep the work inside approved, managed systems.",
-      "Escalate suspected data leaks to your manager and Data Protection Officer."
-    ],
-    "policyRefs": ["Data Privacy & Confidential Information Policy", "Data Classification Standard"],
-    "clues": {
-      "request": {"finding": "The export 'clients_full_export.xlsx' holds names, account numbers and balances", "meaning": "this is Confidential / Personal data under the classification standard."},
-      "channel": {"finding": "The destination is a personal @gmail.com account", "meaning": "moving confidential data outside managed systems is a reportable leak."},
-      "urgency": {"finding": "The colleague says they'll 'get in trouble' unless it's sent now", "meaning": "pressure is being used to bypass controls."}
-    }
+    "learningPoints": ["Client data must stay in approved systems", "Personal email is not a secure channel", "Ask for an approved secure transfer path"],
+    "policyRefs": ["Data handling standards", "Client confidentiality policy"],
+    "clues": {"channel": {"finding": "The destination is a personal Gmail account", "meaning": "This bypasses approved secure transfer routes"}, "request": {"finding": "The request is to email a full export", "meaning": "The volume and sensitivity exceed the safe threshold"}, "urgency": {"finding": "The request says it is urgent for a client call", "meaning": "Pressure is being used to bypass process"}},
+    "generated": false
   },
   {
-    "id": "vendor_003",
+    "id": "mission-3",
     "title": "Suspicious Vendor Request",
     "topic": "Operational Risk",
     "difficulty": "Intermediate",
-    "points": 150,
-    "estimatedMinutes": 9,
-    "summary": "An existing vendor emails asking to change their bank details before the next payment run. Genuine or fraud?",
-    "briefing": "An email arrives from a known vendor: 'Please update our bank account for the upcoming invoice — our old account is being closed. Payment is due tomorrow, so we need this changed today.' The signature and logo look right. Do you update the details?",
-    "scenario": "Threat vector: Business Email Compromise (BEC). A supplier requests an urgent bank-account change before an invoice run. Red flags: changed bank details, reply-to domain mismatch, urgency, no independent verification.",
-    "objectives": [
-      "Spot the signs of Business Email Compromise",
-      "Apply the payment-change verification control",
-      "Escalate to Vendor Management"
-    ],
+    "points": 260,
+    "estimatedMinutes": 18,
+    "summary": "A vendor asks for a bank detail change via email.",
+    "briefing": "The request looks routine but could signal business email compromise.",
+    "scenario": "A vendor contact requests a bank detail change and attaches a new invoice to avoid an account freeze.",
+    "objectives": ["Detect a potential BEC attempt", "Verify through known channels", "Safeguard payment processes"],
     "steps": [
       {
-        "id": "step1",
-        "prompt": "The vendor wants their bank details changed today for tomorrow's payment. What is your first action?",
-        "clue": "Any change to payment details should trigger a verification control.",
+        "id": "s1",
+        "prompt": "Step 1: What is your instinct?",
+        "clue": "The sender address is new.",
         "choices": [
-          {"id": "A", "text": "Update the details — the email looks legitimate", "correct": false, "risk": "high", "feedback": "Appearance is not verification. This is how BEC fraud succeeds."},
-          {"id": "B", "text": "Independently verify the request using the vendor's known contact on file", "correct": true, "risk": "low", "feedback": "Correct. Call back on a trusted number — never the one in the email."},
-          {"id": "C", "text": "Reply to the email to confirm the new account number", "correct": false, "risk": "high", "feedback": "You'd be confirming with the attacker, not the vendor."},
-          {"id": "D", "text": "Make the change but keep a note in case it's wrong", "correct": false, "risk": "high", "feedback": "A note won't recover funds sent to a fraudulent account."}
+          {"id": "s1_c1", "text": "Accept the change and update the record", "correct": false, "risk": "high", "feedback": "That could lead to a fraud loss."},
+          {"id": "s1_c2", "text": "Verify the request through a known contact number", "correct": true, "risk": "low", "feedback": "Good. Independent verification is key."},
+          {"id": "s1_c3", "text": "Reply and ask for the bank details", "correct": false, "risk": "medium", "feedback": "That introduces unnecessary exposure."}
         ]
       },
       {
-        "id": "step2",
-        "prompt": "You examine the email header. What is the clearest warning sign?",
-        "clue": "Compare the sender/reply-to address with the vendor's real domain.",
+        "id": "s2",
+        "prompt": "Step 2: What should you check?",
+        "clue": "The invoice link is unexpected.",
         "choices": [
-          {"id": "A", "text": "The reply-to address is a look-alike domain, different from the vendor on file", "correct": true, "risk": "low", "feedback": "Correct. A mismatched reply-to domain is a hallmark of BEC."},
-          {"id": "B", "text": "The email has the vendor's logo, so it's genuine", "correct": false, "risk": "high", "feedback": "Logos are trivial to copy and mean nothing on their own."},
-          {"id": "C", "text": "The invoice number looks normal", "correct": false, "risk": "medium", "feedback": "A plausible invoice number doesn't verify a bank-detail change."},
-          {"id": "D", "text": "It was sent during business hours", "correct": false, "risk": "medium", "feedback": "Timing is not a control for payment changes."}
+          {"id": "s2_c1", "text": "Open the attachment and update the vendor record", "correct": false, "risk": "high", "feedback": "That is not a safe control step."},
+          {"id": "s2_c2", "text": "Confirm the change with the finance team using the approved process", "correct": true, "risk": "low", "feedback": "Excellent. That protects the payment process."},
+          {"id": "s2_c3", "text": "Share the invoice with your network", "correct": false, "risk": "medium", "feedback": "That would create more risk."}
         ]
       },
       {
-        "id": "step3",
-        "prompt": "How do you correctly resolve the request?",
-        "clue": "Do not change details until verified; involve the right team.",
+        "id": "s3",
+        "prompt": "Step 3: Which action is best?",
+        "clue": "The message asks to change bank details.",
         "choices": [
-          {"id": "A", "text": "Hold the change, verify via the number on file, and escalate to Vendor Management", "correct": true, "risk": "low", "feedback": "Correct. Verified change control prevents payment fraud."},
-          {"id": "B", "text": "Change it now and verify afterwards to avoid a late payment", "correct": false, "risk": "high", "feedback": "Once paid, the money is gone. Verify first, always."},
-          {"id": "C", "text": "Ask the requester to email a scanned letter as proof", "correct": false, "risk": "medium", "feedback": "Attackers can forge letters too — only a trusted call-back verifies."},
-          {"id": "D", "text": "Ignore it; the vendor will chase if it's real", "correct": false, "risk": "medium", "feedback": "Ignoring risks a genuine issue; the right step is verify-and-escalate."}
+          {"id": "s3_c1", "text": "Escalate to the controls team and keep the evidence", "correct": true, "risk": "low", "feedback": "That is the strongest response."},
+          {"id": "s3_c2", "text": "Use the link to confirm the payment", "correct": false, "risk": "high", "feedback": "Do not trust a suspicious link."},
+          {"id": "s3_c3", "text": "Wait for a week before doing anything", "correct": false, "risk": "medium", "feedback": "Timing matters, but the right response is immediate escalation."}
         ]
       }
     ],
-    "learningPoints": [
-      "Any request to change vendor bank details must be verified via a known, trusted contact.",
-      "A mismatched reply-to/look-alike domain is a classic Business Email Compromise sign.",
-      "Never verify using contact details supplied in the suspicious email itself.",
-      "Escalate payment-change requests to Vendor Management before acting."
-    ],
-    "policyRefs": ["Third-Party Risk & Payments Control Policy", "Anti-Fraud Standard"],
-    "clues": {
-      "sender": {"finding": "The reply-to domain is a look-alike, not the vendor's registered domain", "meaning": "this strongly indicates Business Email Compromise."},
-      "request": {"finding": "They request an urgent bank-account change before the payment run", "meaning": "payment-detail changes require independent verification."},
-      "urgency": {"finding": "They warn the payment will be late without immediate action", "meaning": "urgency is used to bypass the verification control."}
-    }
+    "learningPoints": ["Payments must be verified through independent channels", "Unexpected banking changes are high risk", "Escalate to finance controls"],
+    "policyRefs": ["Payment change controls", "Third-party risk policy"],
+    "clues": {"sender": {"finding": "The sender address uses a new domain", "meaning": "It may be impersonation"}, "link": {"finding": "The invoice link points to a payment portal not on the approved vendor list", "meaning": "The change could be a spoof"}, "request": {"finding": "The message asks to change bank account details", "meaning": "This is a classic payment diversion pattern"}},
+    "generated": false
   },
   {
-    "id": "aimisuse_004",
+    "id": "mission-4",
     "title": "AI Tool Misuse",
     "topic": "Responsible AI",
     "difficulty": "Expert",
-    "points": 200,
-    "estimatedMinutes": 11,
-    "summary": "A teammate wants to paste client data and source code into a public AI chatbot to save time. Is that OK?",
-    "briefing": "During a busy release, a teammate says: 'Let's just paste the client records and our service's source code into a public AI chatbot — it'll debug and summarise it in seconds.' It would genuinely save hours. What do you advise?",
-    "scenario": "Threat vector: entering confidential/personal data and proprietary code into an unapproved public LLM. Red flags: confidential data in a public tool, provider data retention, no approval, sanctioned alternative exists.",
-    "objectives": [
-      "Recognise confidential data must not enter unapproved AI tools",
-      "Understand data-retention and confidentiality risk",
-      "Redirect to the approved internal AI platform"
-    ],
+    "points": 320,
+    "estimatedMinutes": 20,
+    "summary": "A teammate pastes client data and code into a public chatbot.",
+    "briefing": "The behavior seems efficient but breaches responsible AI use boundaries.",
+    "scenario": "A developer wants to debug quickly so they paste a client dataset and sample code into a public AI tool.",
+    "objectives": ["Recognize responsible AI misuse", "Protect sensitive client data", "Use approved tools"],
     "steps": [
       {
-        "id": "step1",
-        "prompt": "Your teammate is about to paste client records and code into a public AI chatbot. What do you say?",
-        "clue": "Think about where the data goes once it leaves the bank's systems.",
+        "id": "s1",
+        "prompt": "Step 1: What is the concern?",
+        "clue": "The data is client sensitive.",
         "choices": [
-          {"id": "A", "text": "Go ahead — it's faster and everyone uses these tools", "correct": false, "risk": "high", "feedback": "Confidential data in a public tool is a confidentiality and data-protection breach."},
-          {"id": "B", "text": "Stop — confidential data and proprietary code must not go into unapproved public tools", "correct": true, "risk": "low", "feedback": "Correct. Protect the data first; find a sanctioned way to get the benefit."},
-          {"id": "C", "text": "Only paste the client data, not the code", "correct": false, "risk": "high", "feedback": "Client/personal data is exactly what must never be pasted into public tools."},
-          {"id": "D", "text": "Paste it but ask the tool not to store it", "correct": false, "risk": "high", "feedback": "You can't rely on a public tool's promise; the data has already left."}
+          {"id": "s1_c1", "text": "Use the public AI tool and paste the data because the task is urgent", "correct": false, "risk": "high", "feedback": "That is an unacceptable data handling decision."},
+          {"id": "s1_c2", "text": "Stop and use the approved internal AI environment with data safeguards", "correct": true, "risk": "low", "feedback": "Correct. Safe tooling matters."},
+          {"id": "s1_c3", "text": "Remove the names and continue", "correct": false, "risk": "medium", "feedback": "That still may expose regulated information."}
         ]
       },
       {
-        "id": "step2",
-        "prompt": "Why specifically is pasting into the public chatbot a problem?",
-        "clue": "Consider the provider's terms and what happens to your inputs.",
+        "id": "s2",
+        "prompt": "Step 2: What is the next best action?",
+        "clue": "The tool is not approved.",
         "choices": [
-          {"id": "A", "text": "The provider may retain and train on the inputs, exposing confidential/personal data", "correct": true, "risk": "low", "feedback": "Correct. Loss of control over confidential data is the core risk."},
-          {"id": "B", "text": "The AI might give a slightly wrong answer", "correct": false, "risk": "medium", "feedback": "Accuracy matters, but the leak of confidential data is the critical risk here."},
-          {"id": "C", "text": "It could be slow at peak times", "correct": false, "risk": "low", "feedback": "Performance is irrelevant to the data-protection breach."},
-          {"id": "D", "text": "There's no problem if we're quick", "correct": false, "risk": "high", "feedback": "Speed doesn't reduce the confidentiality risk at all."}
+          {"id": "s2_c1", "text": "Use the public chatbot because it is faster", "correct": false, "risk": "high", "feedback": "That creates a governance risk."},
+          {"id": "s2_c2", "text": "Ask for the approved internal tool and review the data handling rules", "correct": true, "risk": "low", "feedback": "Excellent. Governance should come first."},
+          {"id": "s2_c3", "text": "Paste the data into a side note for future reference", "correct": false, "risk": "medium", "feedback": "That does not solve the issue."}
         ]
       },
       {
-        "id": "step3",
-        "prompt": "What's the responsible path forward?",
-        "clue": "There is a sanctioned way to get AI help safely.",
+        "id": "s3",
+        "prompt": "Step 3: Which action demonstrates professionalism?",
+        "clue": "The request is urgent but not safe.",
         "choices": [
-          {"id": "A", "text": "Use the approved internal AI platform that keeps data inside the bank, and follow AI-usage guidance", "correct": true, "risk": "low", "feedback": "Correct. Get the productivity benefit through sanctioned, governed tooling."},
-          {"id": "B", "text": "Anonymise names and paste the rest into the public tool", "correct": false, "risk": "high", "feedback": "Ad-hoc anonymisation is unreliable and code/context can still be sensitive."},
-          {"id": "C", "text": "Ask a manager to approve using the public tool 'just this once'", "correct": false, "risk": "medium", "feedback": "The right answer is the sanctioned platform, not an exception for a public tool."},
-          {"id": "D", "text": "Skip AI entirely and do everything manually forever", "correct": false, "risk": "low", "feedback": "Not necessary — approved tools let you use AI safely."}
+          {"id": "s3_c1", "text": "Escalate to the responsible AI owner and document the incident", "correct": true, "risk": "low", "feedback": "That is the right control response."},
+          {"id": "s3_c2", "text": "Ignore the risk and continue", "correct": false, "risk": "high", "feedback": "That is not acceptable."},
+          {"id": "s3_c3", "text": "Delete the evidence after the task", "correct": false, "risk": "medium", "feedback": "That undermines traceability and learning."}
         ]
       }
     ],
-    "learningPoints": [
-      "Never enter confidential, personal or proprietary information into unapproved public AI tools.",
-      "Public tools may retain and train on your inputs — you lose control of the data.",
-      "Use the bank's approved internal AI platform to get the benefit safely.",
-      "Follow the Responsible AI and Acceptable Use guidance for any AI tooling."
-    ],
-    "policyRefs": ["Responsible AI & Acceptable Use Policy", "Data Classification Standard"],
-    "clues": {
-      "request": {"finding": "The plan is to paste client records and source code into a public LLM", "meaning": "confidential/personal data must never enter unapproved external tools."},
-      "channel": {"finding": "The public tool's terms permit retaining and training on inputs", "meaning": "this causes a loss of control and a confidentiality breach."},
-      "urgency": {"finding": "The justification is purely to 'save hours' during a release", "meaning": "time pressure is not a reason to bypass data protection."}
-    }
+    "learningPoints": ["Do not share regulated or client data with public AI tools", "Use approved internal AI tooling", "Assess risk before use"],
+    "policyRefs": ["Responsible AI use policy", "Data protection standards"],
+    "clues": {"request": {"finding": "The request is to paste client data into a public chatbot", "meaning": "That is a clear data leakage risk"}, "channel": {"finding": "The tool is public and not approved", "meaning": "It lacks the governance controls we require"}, "urgency": {"finding": "The deadline is tight and the person wants a quick answer", "meaning": "Speed is being prioritized over controls"}},
+    "generated": false
   },
   {
-    "id": "clientdata_005",
+    "id": "mission-5",
     "title": "Client Data Handling",
     "topic": "Data Privacy",
     "difficulty": "Intermediate",
-    "points": 150,
-    "estimatedMinutes": 8,
-    "summary": "A caller who fails identity checks demands their full account details 'because it's an emergency'. What now?",
-    "briefing": "You take a call from someone claiming to be a client. They cannot answer two of the required security questions, but they insist: 'This is an emergency, just read me my account number and balance!' They are becoming aggressive. How do you respond?",
-    "scenario": "Threat vector: social engineering over the phone to extract client account data after failed identity verification. Red flags: failed verification, emotional pressure, request for sensitive data.",
-    "objectives": [
-      "Apply identity-verification procedure strictly",
-      "Resist pressure to disclose data",
-      "Escalate appropriately"
-    ],
+    "points": 240,
+    "estimatedMinutes": 17,
+    "summary": "A caller requests account details without completing identity verification.",
+    "briefing": "The call seems urgent and the caller is pushing for immediate access.",
+    "scenario": "Someone calls claiming to be a client and asks for account details before verifying identity.",
+    "objectives": ["Follow verification protocols", "Protect customer data", "Escalate if verification fails"],
     "steps": [
       {
-        "id": "step1",
-        "prompt": "The caller failed identity verification but demands their account details. What do you do?",
-        "clue": "Disclosure depends entirely on verified identity — not on how urgent the caller sounds.",
+        "id": "s1",
+        "prompt": "Step 1: What should you say first?",
+        "clue": "The caller claims to be a client but is not verified.",
         "choices": [
-          {"id": "A", "text": "Read out the details — they sound genuinely distressed", "correct": false, "risk": "high", "feedback": "Distress is not identity. Disclosing to an unverified caller is a data breach."},
-          {"id": "B", "text": "Do not disclose anything and continue to follow the verification procedure", "correct": true, "risk": "low", "feedback": "Correct. No verification means no disclosure — full stop."},
-          {"id": "C", "text": "Give partial details as a compromise", "correct": false, "risk": "high", "feedback": "Even partial disclosure to an unverified caller is a breach."},
-          {"id": "D", "text": "Ask them to confirm the account number and then proceed", "correct": false, "risk": "high", "feedback": "Letting them supply the answer defeats the purpose of verification."}
+          {"id": "s1_c1", "text": "Disclose account details to be helpful", "correct": false, "risk": "high", "feedback": "That would be a privacy breach."},
+          {"id": "s1_c2", "text": "Follow the secure verification process before sharing anything", "correct": true, "risk": "low", "feedback": "Correct. Verification comes first."},
+          {"id": "s1_c3", "text": "Ask for a screenshot of the account", "correct": false, "risk": "medium", "feedback": "That is still not the right control."}
         ]
       },
       {
-        "id": "step2",
-        "prompt": "The caller escalates and becomes aggressive. What is the right mindset?",
-        "clue": "Pressure and emotion are classic social-engineering levers.",
+        "id": "s2",
+        "prompt": "Step 2: What should you do if the caller becomes impatient?",
+        "clue": "The caller demands immediate help.",
         "choices": [
-          {"id": "A", "text": "The pressure is a manipulation tactic; procedure protects both the client and me", "correct": true, "risk": "low", "feedback": "Correct. Stay calm and follow procedure regardless of pressure."},
-          {"id": "B", "text": "Aggressive callers are usually genuine, so I should help faster", "correct": false, "risk": "high", "feedback": "Aggression is often used precisely to push staff into breaking rules."},
-          {"id": "C", "text": "I should bend the rules to de-escalate", "correct": false, "risk": "high", "feedback": "Bending data-protection rules to calm someone is never acceptable."},
-          {"id": "D", "text": "I should hang up immediately without explanation", "correct": false, "risk": "medium", "feedback": "Better to remain professional, explain the process, and escalate."}
+          {"id": "s2_c1", "text": "Give a partial answer to keep them calm", "correct": false, "risk": "high", "feedback": "That still breaches the control."},
+          {"id": "s2_c2", "text": "Pause the process and escalate to the verification team", "correct": true, "risk": "low", "feedback": "That is the right approach."},
+          {"id": "s2_c3", "text": "Tell them to call back later", "correct": false, "risk": "medium", "feedback": "That does not handle the issue responsibly."}
         ]
       },
       {
-        "id": "step3",
-        "prompt": "How do you resolve the call correctly?",
-        "clue": "Offer the compliant route and involve a supervisor if needed.",
+        "id": "s3",
+        "prompt": "Step 3: How do you document the call?",
+        "clue": "The request is suspicious.",
         "choices": [
-          {"id": "A", "text": "Explain the verification requirement, offer the secure route to regain access, and escalate to a supervisor", "correct": true, "risk": "low", "feedback": "Correct. You protect the client's data and give them a legitimate path forward."},
-          {"id": "B", "text": "Make an exception this once and note it afterwards", "correct": false, "risk": "high", "feedback": "A single exception is still a data breach."},
-          {"id": "C", "text": "Transfer them randomly to get them off your line", "correct": false, "risk": "medium", "feedback": "Dumping the call doesn't follow procedure or help the real client."},
-          {"id": "D", "text": "Tell them to post their ID documents to the office", "correct": false, "risk": "medium", "feedback": "That's not the approved secure verification route."}
+          {"id": "s3_c1", "text": "Record the attempt and report it to the privacy team", "correct": true, "risk": "low", "feedback": "Excellent. Good documentation protects the process."},
+          {"id": "s3_c2", "text": "Share the details in a general email", "correct": false, "risk": "high", "feedback": "That creates more exposure."},
+          {"id": "s3_c3", "text": "Ignore the concern because it passed quickly", "correct": false, "risk": "medium", "feedback": "This deserves a record and a follow-up."}
         ]
       }
     ],
-    "learningPoints": [
-      "No identity verification means no disclosure of client data — without exception.",
-      "Emotional pressure and aggression are deliberate social-engineering tactics.",
-      "Offer the client a secure, approved route to regain access.",
-      "Escalate difficult cases to a supervisor rather than bending the rules."
-    ],
-    "policyRefs": ["Client Data Handling & KYC Policy", "Data Privacy & Confidential Information Policy"],
-    "clues": {
-      "request": {"finding": "The caller cannot answer two required security questions", "meaning": "identity is not verified, so account data must not be disclosed."},
-      "urgency": {"finding": "They claim an emergency and become aggressive", "meaning": "emotional pressure is used to bypass controls — follow procedure."}
-    }
+    "learningPoints": ["Never disclose sensitive account details without verification", "Use the secure verification process", "Escalate suspicious requests"],
+    "policyRefs": ["Customer verification policy", "Privacy handling procedures"],
+    "clues": {"sender": {"finding": "The caller claims to be a client but does not pass verification", "meaning": "The identity cannot be trusted yet"}, "request": {"finding": "The caller asks for account details", "meaning": "That is sensitive and should not be disclosed"}, "urgency": {"finding": "The caller demands immediate help", "meaning": "The pressure is a common tactic"}},
+    "generated": false
   }
 ]

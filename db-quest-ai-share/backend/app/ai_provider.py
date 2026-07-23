@@ -1,133 +1,139 @@
-"""Low-level LLM provider abstraction.
-
-Supports OpenAI, Azure OpenAI and Google Gemini via plain HTTP (httpx), so no
-heavy vendor SDKs are required. If no provider is configured, ``live`` is False
-and callers fall back to the deterministic mock generators in ``ai_service``.
-"""
 from __future__ import annotations
 
 import json
 import re
-from typing import Optional
+from typing import Any
 
 import httpx
 
-from .config import settings
+
+def extract_json(text: str) -> dict[str, Any]:
+    """Best-effort extraction of a JSON object from an LLM response.
+
+    Handles raw JSON, ```json fenced blocks, and prose that wraps a JSON object.
+    Returns an empty dict when nothing parseable is found.
+    """
+    if not text:
+        return {}
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned)
+        cleaned = re.sub(r"\n?```$", "", cleaned).strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(cleaned[start : end + 1])
+        except json.JSONDecodeError:
+            return {}
+    return {}
 
 
 class AIProvider:
-    """Thin, provider-agnostic chat client."""
+    """Thin synchronous client for OpenAI / Azure OpenAI / Gemini.
 
-    def __init__(self) -> None:
-        self.provider = settings.ai_provider
-        self.timeout = httpx.Timeout(45.0)
+    ``chat()`` returns plain text; ``chat_json()`` returns a parsed dict.
+    ``self.live`` is set True after a successful live call so callers can report
+    whether a real model answered. The provider never raises on ``mock`` — that
+    keeps the offline demo path simple.
+    """
 
-    @property
-    def live(self) -> bool:
-        """True when a real provider is selected and configured."""
-        return self.provider in {"openai", "azure", "gemini"} and settings.provider_configured
+    def __init__(self, provider: str, config: dict[str, str]) -> None:
+        self.provider = provider
+        self.config = config
+        self.live = False
 
-    async def chat(
-        self,
-        system: str,
-        user: str,
-        temperature: float = 0.7,
-        max_tokens: int = 1000,
-    ) -> str:
-        """Return raw assistant text for a single-turn system+user exchange."""
+    def _messages(self, prompt: str, system: str | None) -> list[dict[str, str]]:
+        messages: list[dict[str, str]] = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        return messages
+
+    def chat(self, prompt: str, *, system: str | None = None) -> str:
+        provider = self.provider
+
+        if provider == "openai":
+            payload = {
+                "model": self.config.get("openai_model", "gpt-4o-mini"),
+                "messages": self._messages(prompt, system),
+                "temperature": 0.2,
+            }
+            headers = {"Authorization": f"Bearer {self.config.get('api_key', '')}"}
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(
+                    "https://api.openai.com/v1/chat/completions", json=payload, headers=headers
+                )
+                response.raise_for_status()
+                self.live = True
+                return response.json()["choices"][0]["message"]["content"]
+
+        if provider == "azure":
+            endpoint = self.config.get("endpoint", "").rstrip("/")
+            deployment = self.config.get("azure_deployment", "gpt-4o-mini")
+            api_version = self.config.get("azure_api_version", "2024-02-01")
+            url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
+            headers = {"api-key": self.config.get("api_key", "")}
+            payload = {"messages": self._messages(prompt, system), "temperature": 0.2}
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                self.live = True
+                return response.json()["choices"][0]["message"]["content"]
+
+        if provider == "gemini":
+            model = self.config.get("gemini_model", "gemini-2.0-flash")
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+                f"?key={self.config.get('api_key', '')}"
+            )
+            parts = []
+            if system:
+                parts.append({"text": system})
+            parts.append({"text": prompt})
+            payload = {"contents": [{"parts": parts}]}
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(url, json=payload)
+                response.raise_for_status()
+                self.live = True
+                return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+        # mock / unknown provider
+        self.live = False
+        return ""
+
+    def chat_json(self, prompt: str, *, system: str | None = None) -> dict[str, Any]:
+        return extract_json(self.chat(prompt, system=system))
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """Return an embedding vector per input text (OpenAI / Azure only).
+
+        Raises on any error so callers can fall back to TF-IDF. Returns [] for mock.
+        """
+        if not texts:
+            return []
+
         if self.provider == "openai":
-            return await self._openai(system, user, temperature, max_tokens)
+            payload = {"model": self.config.get("openai_embedding_model", "text-embedding-3-small"), "input": texts}
+            headers = {"Authorization": f"Bearer {self.config.get('api_key', '')}"}
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post("https://api.openai.com/v1/embeddings", json=payload, headers=headers)
+                response.raise_for_status()
+                return [row["embedding"] for row in response.json()["data"]]
+
         if self.provider == "azure":
-            return await self._azure(system, user, temperature, max_tokens)
-        if self.provider == "gemini":
-            return await self._gemini(system, user, temperature, max_tokens)
-        raise RuntimeError("No live AI provider configured")
+            endpoint = self.config.get("endpoint", "").rstrip("/")
+            deployment = self.config.get("azure_embedding_deployment", "text-embedding-3-small")
+            api_version = self.config.get("azure_api_version", "2024-02-01")
+            url = f"{endpoint}/openai/deployments/{deployment}/embeddings?api-version={api_version}"
+            headers = {"api-key": self.config.get("api_key", "")}
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(url, json={"input": texts}, headers=headers)
+                response.raise_for_status()
+                return [row["embedding"] for row in response.json()["data"]]
 
-    async def chat_json(self, system: str, user: str, temperature: float = 0.5) -> dict:
-        """Return a parsed JSON object from the model response."""
-        text = await self.chat(
-            system + "\n\nRespond ONLY with valid minified JSON. No markdown fences.",
-            user,
-            temperature=temperature,
-            max_tokens=1600,
-        )
-        return _extract_json(text)
-
-    # ----------------------------------------------------------------- OpenAI
-    async def _openai(self, system: str, user: str, temperature: float, max_tokens: int) -> str:
-        url = f"{settings.openai_base_url}/chat/completions"
-        headers = {"Authorization": f"Bearer {settings.openai_api_key}"}
-        payload = {
-            "model": settings.openai_model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        return data["choices"][0]["message"]["content"]
-
-    # ------------------------------------------------------------------ Azure
-    async def _azure(self, system: str, user: str, temperature: float, max_tokens: int) -> str:
-        url = (
-            f"{settings.azure_endpoint}/openai/deployments/"
-            f"{settings.azure_deployment}/chat/completions"
-            f"?api-version={settings.azure_api_version}"
-        )
-        headers = {"api-key": settings.azure_api_key}
-        payload = {
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        return data["choices"][0]["message"]["content"]
-
-    # ----------------------------------------------------------------- Gemini
-    async def _gemini(self, system: str, user: str, temperature: float, max_tokens: int) -> str:
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
-        )
-        payload = {
-            "systemInstruction": {"parts": [{"text": system}]},
-            "contents": [{"role": "user", "parts": [{"text": user}]}],
-            "generationConfig": {
-                "temperature": temperature,
-                "maxOutputTokens": max_tokens,
-            },
-        }
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-
-
-def _extract_json(text: str) -> dict:
-    """Best-effort extraction of a JSON object from a model response."""
-    text = text.strip()
-    # Strip markdown code fences if present.
-    text = re.sub(r"^```(?:json)?", "", text).strip()
-    text = re.sub(r"```$", "", text).strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            return json.loads(match.group(0))
-        raise
-
-
-provider = AIProvider()
+        return []

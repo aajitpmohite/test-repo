@@ -1,202 +1,147 @@
 # DB Quest AI
 
-> **Learn faster. Work smarter. Stay compliant — with an AI Digital Colleague.**
+A multi-team, full-stack app that gives every team a private **AI Digital Colleague**
+(answers grounded in the team's own documents) and a set of **AI Escape Missions**
+(compliance training as an interactive escape room).
 
-An AI-powered web application built for the **Deutsche Bank FutureReady / Global Hackathon 2026** theme
-*(applying AI in practice to shape the bank of tomorrow)*. It solves **two** real enterprise problems in
-one product:
+It runs **fully offline in demo mode** — no API keys, no external services — and
+transparently upgrades to a live LLM + embeddings when you configure a provider.
 
-1. **Knowledge is fragmented** → an **AI Digital Colleague** answers project/process questions with cited
-   sources, onboards new joiners, explains acronyms and finds the right expert.
-2. **Mandatory training is passive** → an **AI Escape-Room** turns policies and risks into interactive,
-   adaptive missions where employees *learn by making realistic decisions*.
-
-The whole app runs **fully offline in a deterministic demo mode with zero API keys**, and transparently
-upgrades to a **live LLM** (OpenAI / Azure OpenAI / Google Gemini) when a key is provided — so the demo
-never fails on stage.
+- **Backend:** Python · FastAPI · SQLModel (SQLite by default) · JWT auth
+- **Frontend:** React 18 · Vite 5 · Tailwind CSS 3 · React Router 6
 
 ---
 
-## ✨ Features
+## Usage model (how a team uses it)
 
-| # | Feature | What the AI does | Where |
-|---|---------|------------------|-------|
-| 1 | **Ask Digital Colleague** | Retrieval-grounded Q&A over team docs, with cited sources & confidence | `/colleague` |
-| 2 | **AI Onboarding Buddy** | Generates a structured, day-by-day onboarding plan | `/onboarding` |
-| 3 | **AI Acronym Explainer** | Decodes bank acronyms (UBR, SFT, IRT…) with project context | `/acronyms` |
-| 4 | **AI Expert Finder** | Suggests contacts by *document ownership & topic match* (not rankings) | `/experts` |
-| 5 | **Document Summariser** | Key points, decisions, action items, risks, people mentioned | `/documents` |
-| 6 | **Escape-Room Missions** | Adaptive **Game Master**, progressive **hints**, per-decision explanations | `/missions` |
-| 7 | **AI Mission Generator** | Turns any topic/policy into a playable mission instantly | `/admin` |
-| 8 | **Personalised Learning Report** | Private risk-awareness score, strengths & improvement areas | end of mission |
-
----
-
-## 🧭 Architecture
-
-```mermaid
-flowchart TD
-    UI["React + Vite + Tailwind SPA"] -->|"/api (proxied)"| API["FastAPI backend"]
-    API --> SVC["AI Service (domain layer)"]
-    SVC -->|"live mode"| PROV["AIProvider<br/>OpenAI · Azure · Gemini"]
-    SVC -->|"offline / demo"| MOCK["Deterministic mock generators"]
-    API --> KS["Knowledge Store<br/>(TF-IDF chunk retrieval)"]
-    API --> CONT["Content Repository<br/>missions · acronyms · experts"]
-    KS --> DOCS[("Seed documents<br/>+ uploads")]
-    CONT --> JSON[("JSON seed data")]
+```
+Register / demo login  ->  land in a Team (with a Role)  ->  Admin uploads docs
+        ->  Members ask questions (answers cite those docs)  ->  Everyone plays
+        missions (private scores)  ->  Admin sees anonymized Team Insights
 ```
 
-**Design principle:** routers depend only on the **AI Service**, which returns identical shapes whether the
-brain is a live LLM or the offline mock. This makes the product robust for a live demo and easy to extend.
+- **Auth & identity:** email + password (JWT), plus a one-click *Continue as demo user*.
+  All `/api` routes require a token except `/api/health` and `/api/auth/*`.
+- **Teams / workspaces:** every user belongs to one or more teams. **All content
+  (documents, chunks, missions, attempts) is scoped to a team** and isolation is enforced
+  server-side. The top-bar team switcher changes which team's data you see.
+- **Roles:**
+  - **Admin** — upload documents, create missions, view aggregated team insights.
+  - **Member** — ask questions, take onboarding, play missions.
+  Admin-only UI is hidden from members and admin-only routes are blocked server-side.
+- **Privacy:** mission answer keys never reach the browser (server-side grading);
+  individual scores are private; the insights view shows **only anonymized aggregates**
+  (e.g. "70% identified the red flag first try") — never rankings.
+
+### Demo accounts (seeded on first run)
+
+| Email | Password | Role |
+|-------|----------|------|
+| `demo-admin@dbquest.ai` | `demo123` | Admin |
+| `demo-member@dbquest.ai` | `demo123` | Member |
+
+*Continue as demo user* logs in as the demo admin.
 
 ---
 
-## 🛠 Tech Stack
+## Architecture
 
-- **Frontend:** React 18, Vite 5, Tailwind CSS 3, React Router 6 (no heavy UI/icon deps — custom inline SVGs)
-- **Backend:** Python 3.10+, FastAPI, Pydantic v2, httpx
-- **Retrieval:** dependency-free TF-IDF chunk search (swappable for FAISS/Chroma)
-- **AI providers:** OpenAI, Azure OpenAI, Google Gemini — or built-in mock
-- **Storage:** JSON seed data + in-memory document store
-
----
-
-## 🚀 Quick Start (Windows / PowerShell)
-
-**Prerequisites:** Python 3.10+ and Node.js 18+.
-
-```powershell
-# 1. One-time setup (creates venv, installs backend + frontend deps)
-./setup.ps1
-
-# 2. In terminal A — start the backend (http://localhost:8000)
-./start-backend.ps1
-
-# 3. In terminal B — start the frontend (http://localhost:5173)
-./start-frontend.ps1
+```
+                    +--------------------------- Browser (React) ---------------------------+
+                    |  AuthContext (JWT + team)   ToastContext   Role-aware UI               |
+                    |  api.js  -- Authorization: Bearer <jwt>,  X-Team-Id: <id> -------------|
+                    +-----------------------------------+-----------------------------------+
+                                        /api (Vite proxies :5173 -> :8000)
+                    +-----------------------------------v-----------------------------------+
+                    | FastAPI                                                                |
+                    |  routers: auth . teams . documents . colleague . missions . insights   |
+                    |  security.py  -> get_current_user (JWT) -> get_team_context (member)    |
+                    |        |                 |                    |                         |
+                    |   AIService         retrieval.py           SQLModel                     |
+                    |  (mock <-> live)  (embeddings <-> TF-IDF)  User.Team.Membership.         |
+                    |        |                 |               Document.Chunk.Mission.Attempt  |
+                    |   ai_provider.py    per-team chunks --------> SQLite (backend/storage)   |
+                    +------------------------------------------------------------------------+
 ```
 
-Then open **http://localhost:5173**.
+### Data model
 
-### Manual setup (any OS)
+| Table | Purpose |
+|-------|---------|
+| `User` | account (email, hashed password) |
+| `Team` | a workspace |
+| `Membership` | links a user to a team **with a role** (admin/member) |
+| `Document` | a team's document (full text persisted) |
+| `Chunk` | a paragraph of a document, optional embedding vector |
+| `Mission` | a team-scoped mission (full JSON incl. answer key) |
+| `MissionAttempt` | one private run: score, grade, decisions (feeds insights) |
 
+### Live vs demo mode
+
+| Capability | Demo (default) | Live (configured) |
+|-----------|----------------|-------------------|
+| Auth persistence | yes — SQLite auto-created | yes — SQLite or Postgres |
+| Q&A answers | mock synthesis | real LLM, grounded in team docs |
+| Mission generation | deterministic archetypes | real LLM (coerced to schema) |
+| Document search | TF-IDF (offline) | embeddings (OpenAI/Azure) |
+| Grading / hints / scoring | deterministic (always) | deterministic (always) |
+
+The live path always **falls back to mock on any error**, so the app never breaks.
+
+---
+
+## Run it
+
+### Backend (Terminal 1)
 ```bash
-# Backend
 cd backend
 python -m venv .venv
-# Windows:  .venv\Scripts\activate     |   macOS/Linux:  source .venv/bin/activate
+# Windows:
+.venv\Scripts\activate
+# macOS / Linux:
+# source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # optional
 uvicorn main:app --reload --port 8000
+```
+First start auto-creates `backend/storage/dbquest.db` and seeds the demo team.
 
-# Frontend (new terminal)
+### Frontend (Terminal 2)
+```bash
 cd frontend
 npm install
-npm run dev
+npm run dev        # http://localhost:5173
 ```
 
-> The app works immediately in **demo mode**. No keys required.
+Open **http://localhost:5173** and click **Continue as demo user**.
+
+### Go live (optional)
+Copy `backend/.env.example` -> `backend/.env`, set `AI_PROVIDER` + a key, and restart the
+backend. Check `http://localhost:8000/api/health` -> `liveAi: true`.
 
 ---
 
-## 🔌 Enabling live AI (optional)
+## Environment variables
 
-Edit `backend/.env` and set a provider:
-
-```dotenv
-# OpenAI
-AI_PROVIDER=openai
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-
-# — or Azure OpenAI —
-AI_PROVIDER=azure
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
-AZURE_OPENAI_DEPLOYMENT=<deployment-name>
-
-# — or Google Gemini —
-AI_PROVIDER=gemini
-GEMINI_API_KEY=...
-```
-
-Restart the backend. The sidebar shows **“Live AI · <provider>”** when active. If a live call fails, the
-app automatically falls back to the mock so the UX never breaks.
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `AI_PROVIDER` | `mock` | `mock` \| `openai` \| `azure` \| `gemini` |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_EMBEDDING_MODEL` | – | OpenAI chat + embeddings |
+| `AZURE_API_KEY` / `AZURE_ENDPOINT` / `AZURE_DEPLOYMENT` / `AZURE_EMBEDDING_DEPLOYMENT` | – | Azure OpenAI |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | – | Gemini chat |
+| `JWT_SECRET` | dev secret | JWT signing key (change in prod) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080` | token lifetime |
+| `DATABASE_URL` | SQLite file | e.g. `postgresql+psycopg://...` for Postgres |
+| `SEED_DEMO` | `true` | seed the demo team + content on first run |
+| `CORS_ORIGINS` | `http://localhost:5173` | allowed frontend origins |
 
 ---
 
-## 📁 Project Structure
+## Onboarding a new team
 
-```
-db-quest-ai/
-├── README.md
-├── setup.ps1 / start-backend.ps1 / start-frontend.ps1
-├── docs/
-│   ├── ARCHITECTURE.md      # deeper design notes
-│   ├── DEMO_SCRIPT.md       # 5-minute pitch + click-through
-│   └── API.md               # endpoint reference
-├── backend/
-│   ├── main.py              # FastAPI app + health
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── app/
-│       ├── config.py        # env-driven settings
-│       ├── models.py        # Pydantic request/response models
-│       ├── ai_provider.py   # OpenAI/Azure/Gemini HTTP clients
-│       ├── ai_service.py    # high-level domain methods (live ↔ mock)
-│       ├── mock_ai.py       # deterministic offline generators
-│       ├── knowledge.py     # TF-IDF document retrieval
-│       ├── content.py       # missions/acronyms/experts repository
-│       ├── routers/         # missions, colleague, documents
-│       └── data/            # missions.json, acronyms.json, experts.json, documents/
-└── frontend/
-    ├── vite.config.js       # dev proxy /api → :8000
-    ├── tailwind.config.js
-    └── src/
-        ├── App.jsx          # shell + sidebar + routes
-        ├── api.js           # typed API client
-        ├── components/      # icons + shared UI
-        └── pages/           # Dashboard, Missions, MissionPlay, Colleague, …
-```
+1. Click **Create one** on the login screen and register — you become the **admin** of a new team.
+2. Go to **Documents** -> upload or paste your team's guides (they're chunked + indexed).
+3. Invite teammates via the team members API (they register first, then you add them by email).
+4. Members open **Ask** to query your docs, **Onboarding** to plan their ramp-up, and **Missions** to train.
+5. As admin, watch **Team Insights** for anonymized progress.
 
----
-
-## 🤖 AI usage — for judges
-
-**AI to *build* the app:** Copilot / LLMs assisted in generating UI, backend APIs, prompts and sample data.
-
-**AI *inside* the app (the differentiator):**
-- Answers employee questions from documents (with sources)
-- Summarises documents into decisions/risks/actions
-- Generates onboarding plans
-- Creates and narrates adaptive escape-room missions
-- Adapts hints and explanations to the player's choices
-- Produces a personalised, private learning summary
-
-See **[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)** for the full pitch and click-through.
-
----
-
-## 🔐 Security & Responsible AI
-
-- **No individual rankings.** Mission scores are **private to the user**; only anonymised/aggregated team
-  insights would be shared in a real deployment.
-- **Expert Finder** surfaces *relevant contacts by document ownership/topic* — never performance judgements.
-- **Grounded answers.** The Digital Colleague answers from provided context and flags when it doesn't know.
-- CORS is restricted to configured origins; answer keys for missions are never sent to the client (evaluation
-  is server-side). No secrets are committed (`.env` is git-ignored).
-
----
-
-## 📌 Limitations (24-hour MVP)
-
-- Document upload supports **text-based files** (`.txt`, `.md`, `.csv`) and pasted text. PDF/DOCX parsing can be
-  added with `pypdf` / `python-docx`.
-- Retrieval uses TF-IDF for zero-dependency portability; swap in embeddings for production.
-- Generated missions and uploaded docs are held **in memory** for the session.
-
----
-
-## 📄 License
-
-Provided for the Deutsche Bank Global Hackathon 2026. Sample data, names and scenarios are fictitious.
+Also see the in-app **How it works** page (sidebar -> Support).

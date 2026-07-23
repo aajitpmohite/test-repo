@@ -1,198 +1,211 @@
-import { useEffect, useRef, useState } from 'react'
-import { api } from '../api'
-import { DocIcon, SparkIcon, UploadIcon } from '../components/icons'
-import { Badge, EmptyState, PageHeader, Spinner } from '../components/ui'
+// Team knowledge base. Admins add documents (which are chunked + indexed for search);
+// everyone can browse and summarise. Clearly communicates that docs are shared with the
+// whole team and power the Colleague's answers.
+import { useEffect, useState } from 'react';
+import { apiGet, apiPost, apiUpload } from '../api';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { PageHeader, Spinner, EmptyState, Skeleton } from '../components/ui';
+import { DocumentIcon, UploadIcon, SparkIcon, CheckIcon, BoltIcon, AlertIcon, ExpertIcon, LockIcon, InfoIcon } from '../components/icons';
+
+const sourceLabels = { seed: 'Sample', upload: 'Uploaded', paste: 'Pasted' };
 
 export default function Documents() {
-  const [docs, setDocs] = useState([])
-  const [summary, setSummary] = useState(null)
-  const [activeId, setActiveId] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [error, setError] = useState('')
-  const [pasteMode, setPasteMode] = useState(false)
-  const [pasteTitle, setPasteTitle] = useState('')
-  const [pasteText, setPasteText] = useState('')
-  const fileRef = useRef(null)
+  const { isAdmin, activeTeam } = useAuth();
+  const toast = useToast();
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [documents, setDocuments] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [activeId, setActiveId] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
 
-  const refresh = () => api.listDocuments().then(setDocs).catch((e) => setError(e.message))
+  async function loadDocuments() {
+    try {
+      setDocuments(await apiGet('/api/documents'));
+    } catch (e) {
+      toast.error(e.message);
+      setDocuments([]);
+    }
+  }
+
   useEffect(() => {
-    refresh()
-  }, [])
+    loadDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  async function onUpload(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    setError('')
+  async function uploadFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
     try {
-      const form = new FormData()
-      form.append('file', file)
-      await api.uploadDocument(form)
-      await refresh()
-    } catch (err) {
-      setError(err.message)
+      const form = new FormData();
+      form.append('file', file);
+      const doc = await apiUpload('/api/documents/upload', form);
+      toast.success(`Indexed “${doc.title}” into ${doc.chunkCount} searchable chunks.`);
+      await loadDocuments();
+    } catch (e) {
+      toast.error(e.message);
     } finally {
-      setUploading(false)
-      if (fileRef.current) fileRef.current.value = ''
+      setBusy(false);
+      event.target.value = '';
     }
   }
 
-  async function onPaste(e) {
-    e.preventDefault()
-    if (!pasteText.trim()) return
-    setUploading(true)
+  async function pasteDocument(e) {
+    e.preventDefault();
+    if (!title.trim() || !text.trim()) return;
+    setBusy(true);
     try {
-      await api.pasteDocument({ title: pasteTitle || 'Pasted document', text: pasteText })
-      setPasteTitle('')
-      setPasteText('')
-      setPasteMode(false)
-      await refresh()
-    } catch (err) {
-      setError(err.message)
+      const doc = await apiPost('/api/documents/paste', { title, text });
+      toast.success(`Saved & indexed “${doc.title}” (${doc.chunkCount} chunks).`);
+      setTitle('');
+      setText('');
+      await loadDocuments();
+    } catch (e) {
+      toast.error(e.message);
     } finally {
-      setUploading(false)
+      setBusy(false);
     }
   }
 
-  async function summarize(doc) {
-    setActiveId(doc.id)
-    setLoading(true)
-    setSummary(null)
+  async function summarize(documentId) {
+    setActiveId(documentId);
+    setSummarizing(true);
     try {
-      const res = await api.summarize({ documentId: doc.id })
-      setSummary(res)
-    } catch (err) {
-      setError(err.message)
+      setSummary(await apiPost('/api/documents/summarize', { documentId }));
+    } catch (e) {
+      toast.error(e.message);
     } finally {
-      setLoading(false)
+      setSummarizing(false);
     }
   }
+
+  const sections = summary
+    ? [
+        { key: 'keyPoints', title: 'Key points', icon: CheckIcon, color: 'text-accent', items: summary.keyPoints },
+        { key: 'decisions', title: 'Decisions', icon: SparkIcon, color: 'text-emerald-600 dark:text-emerald-300', items: summary.decisions },
+        { key: 'actionItems', title: 'Action items', icon: BoltIcon, color: 'text-sky-600 dark:text-sky-300', items: summary.actionItems },
+        { key: 'risks', title: 'Risks', icon: AlertIcon, color: 'text-amber-600 dark:text-amber-300', items: summary.risks },
+      ]
+    : [];
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
-        icon={DocIcon}
-        title="Knowledge Documents"
-        subtitle="Upload team documents to power the Digital Colleague, then summarise any of them with AI."
-      >
-        <div className="flex gap-2">
-          <button className="btn-outline" onClick={() => setPasteMode((v) => !v)}>
-            Paste text
-          </button>
-          <label className="btn-primary cursor-pointer">
-            {uploading ? <Spinner className="h-4 w-4" /> : <UploadIcon className="h-4 w-4" />}
-            Upload
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".txt,.md,.csv"
-              className="hidden"
-              onChange={onUpload}
-            />
-          </label>
-        </div>
-      </PageHeader>
+        eyebrow="Digital Colleague"
+        title="Team knowledge base"
+        subtitle="Documents here are shared with your whole team and power the Colleague's cited answers."
+        icon={<DocumentIcon className="h-6 w-6" />}
+      />
 
-      {error && <p className="mb-4 text-sm text-rose-600">{error}</p>}
+      <div className="flex items-start gap-2 rounded-xl border border-line bg-inset p-3 text-xs leading-relaxed text-muted">
+        <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+        <span>
+          Supported: <b className="text-body">.txt, .md, .csv</b>. Each document is split into searchable chunks and
+          cited in answers on the <b className="text-body">Ask</b> page. Everything is scoped to{' '}
+          <b className="text-body">{activeTeam?.name || 'your team'}</b>.
+        </span>
+      </div>
 
-      {pasteMode && (
-        <form onSubmit={onPaste} className="card mb-5 space-y-3 p-5">
-          <input
-            className="input"
-            placeholder="Document title"
-            value={pasteTitle}
-            onChange={(e) => setPasteTitle(e.target.value)}
-          />
-          <textarea
-            className="textarea"
-            rows={6}
-            placeholder="Paste document text here…"
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-          />
-          <button className="btn-primary" disabled={uploading || !pasteText.trim()}>
-            Add document
-          </button>
-        </form>
-      )}
-
-      <div className="grid gap-5 lg:grid-cols-5">
-        <div className="lg:col-span-2">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Loaded documents ({docs.length})
-          </h2>
-          {docs.length === 0 ? (
-            <EmptyState icon={DocIcon} title="No documents yet" subtitle="Upload or paste one to begin." />
-          ) : (
-            <div className="space-y-2">
-              {docs.map((d) => (
-                <button
-                  key={d.id}
-                  onClick={() => summarize(d)}
-                  className={`card flex w-full items-center gap-3 p-4 text-left transition hover:border-brand-300 ${
-                    activeId === d.id ? 'border-brand-400 ring-2 ring-brand-100' : ''
-                  }`}
-                >
-                  <DocIcon className="h-5 w-5 flex-none text-brand-500" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-ink">{d.title}</p>
-                    <p className="text-xs text-slate-400">
-                      {d.chunks} chunks · {d.chars.toLocaleString()} chars
-                    </p>
-                  </div>
-                  <Badge color="blue">
-                    <SparkIcon className="h-3 w-3" /> Summarise
-                  </Badge>
+      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        {/* Left: add (admin) + library */}
+        <div className="space-y-4">
+          {isAdmin ? (
+            <form onSubmit={pasteDocument} className="card space-y-3">
+              <p className="font-semibold text-strong">Add a document</p>
+              <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Document title" aria-label="Document title" />
+              <textarea className="textarea" rows="4" value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste document content here…" aria-label="Document content" />
+              <div className="flex flex-wrap gap-2">
+                <button className="btn-primary" disabled={busy || !title.trim() || !text.trim()}>
+                  {busy ? <Spinner className="h-4 w-4" /> : null} Add &amp; index
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="lg:col-span-3">
-          {loading && (
-            <div className="card flex h-64 items-center justify-center text-brand-600">
-              <Spinner className="h-8 w-8" />
-            </div>
-          )}
-          {!loading && !summary && (
-            <div className="card flex h-64 flex-col items-center justify-center text-center text-slate-400">
-              <SparkIcon className="h-10 w-10" />
-              <p className="mt-3 font-medium text-slate-500">Select a document to summarise</p>
-            </div>
-          )}
-          {summary && !loading && (
-            <div className="card animate-in space-y-4 p-6">
-              <h2 className="text-xl font-bold text-ink">{summary.title}</h2>
-              <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-700">{summary.summary}</p>
-              <SummarySection title="Key points" items={summary.keyPoints} color="bg-brand-500" />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SummarySection title="Decisions" items={summary.decisions} color="bg-emerald-500" />
-                <SummarySection title="Action items" items={summary.actionItems} color="bg-amber-500" />
-                <SummarySection title="Risks" items={summary.risks} color="bg-rose-500" />
-                <SummarySection title="People mentioned" items={summary.peopleMentioned} color="bg-violet-500" />
+                <label className="btn-outline cursor-pointer">
+                  <UploadIcon className="h-4 w-4" /> Upload file
+                  <input type="file" accept=".txt,.md,.csv" className="hidden" onChange={uploadFile} disabled={busy} />
+                </label>
+              </div>
+            </form>
+          ) : (
+            <div className="card flex items-start gap-3">
+              <LockIcon className="mt-0.5 h-5 w-5 shrink-0 text-muted" />
+              <div>
+                <p className="font-semibold text-strong">Only admins can add documents</p>
+                <p className="mt-1 text-sm text-muted">You can browse and summarise your team’s documents below. Ask an admin to upload new guides.</p>
               </div>
             </div>
+          )}
+
+          <div className="card">
+            <p className="mb-3 font-semibold text-strong">Indexed documents {documents ? `(${documents.length})` : ''}</p>
+            {documents === null ? (
+              <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+            ) : documents.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted">
+                No documents yet — {isAdmin ? 'add your team’s guides to power answers.' : 'ask an admin to add some.'}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {documents.map((doc) => (
+                  <button key={doc.id} onClick={() => summarize(doc.id)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
+                      activeId === doc.id ? 'border-brand-500/50 bg-brand-500/10' : 'border-line bg-inset hover:border-brand-500/30'
+                    }`}>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-card text-muted">
+                      <DocumentIcon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-strong">{doc.title}</p>
+                      <p className="text-xs text-faint">{sourceLabels[doc.source] || doc.source} · {doc.chunkCount} chunks</p>
+                    </div>
+                    <span className="chip shrink-0">Summarise</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: summary */}
+        <div>
+          {summarizing ? (
+            <div className="card flex items-center justify-center gap-3 py-24 text-muted"><Spinner /> Summarising…</div>
+          ) : summary ? (
+            <div className="card animate-fade-in space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500/15 text-accent"><SparkIcon className="h-5 w-5" /></div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-faint">Summary</p>
+                  <h3 className="text-lg font-semibold text-strong">{summary.title}</h3>
+                </div>
+              </div>
+              <p className="text-sm leading-7 text-body">{summary.summary}</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {sections.map((section) => {
+                  const Icon = section.icon;
+                  return (
+                    <div key={section.key} className="surface-inset">
+                      <p className={`flex items-center gap-2 text-sm font-semibold ${section.color}`}><Icon className="h-4 w-4" /> {section.title}</p>
+                      {section.items?.length ? (
+                        <ul className="mt-2 space-y-1.5 text-sm text-muted">{section.items.map((it, i) => <li key={i}>• {it}</li>)}</ul>
+                      ) : <p className="mt-2 text-sm text-faint">None identified.</p>}
+                    </div>
+                  );
+                })}
+              </div>
+              {summary.peopleMentioned?.length > 0 && (
+                <div>
+                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-faint"><ExpertIcon className="h-4 w-4" /> People mentioned</p>
+                  <div className="flex flex-wrap gap-1.5">{summary.peopleMentioned.map((p) => <span key={p} className="badge">{p}</span>)}</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <EmptyState title="Select a document" text="Choose any document to generate a structured summary with key points, decisions, actions, and risks." icon={<DocumentIcon className="h-6 w-6" />} />
           )}
         </div>
       </div>
     </div>
-  )
-}
-
-function SummarySection({ title, items, color }) {
-  return (
-    <div>
-      <h3 className="mb-2 text-sm font-semibold text-slate-600">{title}</h3>
-      <ul className="space-y-1.5 text-sm text-slate-700">
-        {items.map((it, i) => (
-          <li key={i} className="flex items-start gap-2">
-            <span className={`mt-1.5 h-1.5 w-1.5 flex-none rounded-full ${color}`} />
-            {it}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
+  );
 }

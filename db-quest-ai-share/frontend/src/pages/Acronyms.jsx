@@ -1,97 +1,101 @@
-import { useState } from 'react'
-import { api } from '../api'
-import { BookIcon, SearchIcon } from '../components/icons'
-import { Badge, EmptyState, PageHeader, Spinner } from '../components/ui'
+import { useState } from 'react';
+import { apiPost } from '../api';
+import { PageHeader, Spinner, EmptyState } from '../components/ui';
+import { AcronymIcon, SparkIcon, AlertIcon } from '../components/icons';
 
-const COMMON = ['UBR', 'SFT', 'TLA', 'IRT', 'UAT', 'ETL', 'KYC', 'AML', 'RTB', 'CTB', 'SOC', 'DPO']
+const commonTerms = ['UBR', 'SFT', 'KYC', 'AML', 'SLA', 'ETL', 'UAT', 'BAU'];
 
 export default function Acronyms() {
-  const [term, setTerm] = useState('')
-  const [result, setResult] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [term, setTerm] = useState('SFT');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  async function lookup(text) {
-    const t = (text ?? term).trim()
-    if (!t) return
-    setTerm(t)
-    setLoading(true)
+  async function lookup(value) {
+    const t = (value ?? term).trim().toUpperCase();
+    if (!t || loading) return;
+    setTerm(t);
+    setLoading(true);
     try {
-      const res = await api.acronym({ term: t })
-      setResult(res)
-    } catch (err) {
-      setResult({ term: t, matched: false, explanation: err.message })
+      const response = await apiPost('/api/colleague/acronym', { term: t });
+      setResult(response);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
-        icon={BookIcon}
-        title="AI Acronym Explainer"
-        subtitle="Decode the bank's endless acronyms — with plain-language meaning and project context."
+        eyebrow="Digital Colleague"
+        title="Acronym Explorer"
+        subtitle="Decode the business and compliance acronyms that fly around in meetings and tickets."
+        icon={<AcronymIcon className="h-6 w-6" />}
       />
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          lookup()
-        }}
-        className="card mb-4 flex items-center gap-2 p-3"
-      >
-        <SearchIcon className="ml-2 h-5 w-5 text-slate-400" />
-        <input
-          className="input border-0 focus:ring-0"
-          placeholder="Enter an acronym, e.g. UBR"
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-        />
-        <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? <Spinner className="h-4 w-4" /> : 'Explain'}
-        </button>
-      </form>
-
-      <div className="mb-6 flex flex-wrap gap-2">
-        {COMMON.map((c) => (
-          <button key={c} className="chip" onClick={() => lookup(c)}>
-            {c}
+      <div className="card space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            lookup();
+          }}
+          className="flex flex-col gap-3 sm:flex-row"
+        >
+          <input
+            className="input font-semibold uppercase tracking-wide"
+            value={term}
+            onChange={(e) => setTerm(e.target.value.toUpperCase())}
+            placeholder="Enter an acronym…"
+          />
+          <button className="btn-primary shrink-0 sm:w-40" disabled={loading}>
+            {loading ? <Spinner className="h-4 w-4" /> : <AcronymIcon className="h-4 w-4" />}
+            {loading ? 'Looking up…' : 'Look up'}
           </button>
-        ))}
+        </form>
+        <div className="flex flex-wrap gap-1.5">
+          {commonTerms.map((item) => (
+            <button key={item} className="chip" onClick={() => lookup(item)} disabled={loading}>
+              {item}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {result &&
-        (result.matched ? (
-          <div className="card animate-in p-6">
+      {result ? (
+        result.matched ? (
+          <div className="card animate-fade-in space-y-4">
             <div className="flex flex-wrap items-baseline gap-3">
-              <h2 className="text-2xl font-bold text-brand-700">{result.term}</h2>
-              <span className="text-lg text-slate-500">{result.expansion}</span>
+              <h3 className="text-3xl font-extrabold text-strong">{result.term}</h3>
+              <p className="text-lg font-medium text-accent">{result.expansion}</p>
             </div>
-            <p className="mt-3 text-slate-700">{result.explanation}</p>
-            {result.context && (
-              <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-                <span className="font-semibold text-slate-700">Context: </span>
-                {result.context}
-              </div>
-            )}
-            {result.related?.length > 0 && (
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Related
+            <div className="divider" />
+            <p className="text-[15px] leading-8 text-body">{result.explanation}</p>
+            <div className="surface-inset">
+              <p className="text-xs font-semibold uppercase tracking-wider text-faint">Context</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-body">{result.context}</p>
+            </div>
+            {result.related?.length ? (
+              <div>
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-faint">
+                  <SparkIcon className="h-4 w-4" /> Related terms
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {result.related.map((r, i) => (
-                    <Badge key={i} color="blue">
-                      {r}
-                    </Badge>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.related.map((item) => (
+                    <button key={item} className="chip" onClick={() => lookup(item)}>
+                      {item}
+                    </button>
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         ) : (
-          <EmptyState icon={BookIcon} title={`"${result.term}" not in the glossary yet`} subtitle={result.explanation} />
-        ))}
+          <EmptyState
+            title={`No match for “${result.term}”`}
+            text="That term isn't in the seeded glossary. Try one of the common acronyms above."
+            icon={<AlertIcon className="h-6 w-6" />}
+          />
+        )
+      ) : null}
     </div>
-  )
+  );
 }
