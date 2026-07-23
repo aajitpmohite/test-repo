@@ -95,27 +95,21 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # @vercel/python's build step shells out to `uv` to install
-      # dependencies. Vercel's own cloud builders ship it preinstalled;
-      # a plain GitHub-hosted runner does not, so `vercel build` fails
-      # with "uv is required but was not found in PATH" without this.
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
+      # Let Vercel build REMOTELY (no --prebuilt). This always uses the project's
+      # latest environment variables and project settings, and runs on Vercel's own
+      # builders (which ship `uv` for @vercel/python), so CI needs no build tooling.
+      # It also produces normal deployments that can be redeployed from the dashboard,
+      # unlike prebuilt ones.
       - name: Deploy
         id: deploy
         run: |
           set -euo pipefail
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "Deploying to PRODUCTION"
-            vercel pull  --yes --environment=production --token="$VERCEL_TOKEN"
-            vercel build --prod                          --token="$VERCEL_TOKEN"
-            url=$(vercel deploy --prebuilt --prod        --token="$VERCEL_TOKEN")
+            url=$(vercel deploy --prod --yes --token="$VERCEL_TOKEN")
           else
             echo "Deploying PREVIEW"
-            vercel pull  --yes --environment=preview     --token="$VERCEL_TOKEN"
-            vercel build                                 --token="$VERCEL_TOKEN"
-            url=$(vercel deploy --prebuilt               --token="$VERCEL_TOKEN")
+            url=$(vercel deploy --yes --token="$VERCEL_TOKEN")
           fi
           echo "Deployed: $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
