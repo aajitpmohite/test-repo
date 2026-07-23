@@ -3,7 +3,7 @@ import { apiPost } from '../api';
 import { PageHeader, Spinner, EmptyState } from '../components/ui';
 import { ExpertIcon, LockIcon, ArrowRightIcon } from '../components/icons';
 
-const examples = ['privacy', 'security', 'release', 'onboarding', 'responsible ai'];
+const examples = ['privacy', 'security', 'release', 'onboarding', 'responsible ai', 'deployment', 'coding'];
 
 function initials(name) {
   return name
