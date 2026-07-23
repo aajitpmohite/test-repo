@@ -35,6 +35,9 @@ build/
 .vite/
 *.local
 
+# ---- Vercel ----
+.vercel/
+
 # ---- Logs & temp ----
 *.log
 npm-debug.log*
@@ -53,3 +56,5 @@ desktop.ini
 *.swp
 *.swo
 *~
+.vercel
+.env*
