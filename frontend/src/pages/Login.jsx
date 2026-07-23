@@ -81,7 +81,7 @@ export default function Login() {
             ))}
           </div>
         </div>
-        <p className="relative text-xs text-faint">Runs fully offline in demo mode — no API keys required.</p>
+        <p className="relative text-xs text-faint">Runs offline in demo mode with no API keys — or connect an AI provider for live answers.</p>
       </div>
 
       {/* Right: form */}

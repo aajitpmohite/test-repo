@@ -2,6 +2,7 @@
 // anyone landing here understands the two pillars and the admin -> member flow.
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useHealth } from '../hooks/useHealth';
 import {
   MissionIcon, ColleagueIcon, ShieldIcon, DocumentIcon, GenerateIcon, ChartIcon,
   OnboardingIcon, ArrowRightIcon, UploadIcon, BoltIcon, HelpIcon,
@@ -42,6 +43,7 @@ const steps = [
 
 export default function Dashboard() {
   const { user, activeTeam, isAdmin } = useAuth();
+  const { liveAi, aiProvider } = useHealth();
   const firstName = (user?.fullName || user?.email || 'there').split(' ')[0].split('@')[0];
   const actions = isAdmin ? adminActions : memberActions;
 
@@ -105,7 +107,8 @@ export default function Dashboard() {
         <div className="mt-5 flex flex-wrap gap-3">
           <Link to="/help" className="btn-outline">Read the full guide <ArrowRightIcon className="h-4 w-4" /></Link>
           <div className="flex items-center gap-2 rounded-xl border border-line bg-inset px-3 py-2 text-xs text-muted">
-            <ShieldIcon className="h-4 w-4 text-accent" /> Runs offline in demo mode · scores stay private
+            <ShieldIcon className="h-4 w-4 text-accent" />
+            {liveAi ? `Live AI (${aiProvider}) · scores stay private` : 'Offline demo mode · scores stay private'}
           </div>
         </div>
       </section>

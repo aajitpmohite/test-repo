@@ -8,10 +8,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, DoorOpen, Lock, LockOpen, KeyRound, Timer, Puzzle, Lightbulb, Send,
   Trophy, AlertTriangle, CheckCircle2, ChevronRight, Drama, Flame, Fingerprint,
-  Sparkles, Eye, Search,
+  Sparkles, Eye, Search, Volume2, VolumeX, Megaphone,
 } from 'lucide-react';
 import { apiGet, apiPost } from '../api';
 import { EscapeRoom, Panel, Tag, CountUp, ER, ROOM_COLOR } from '../components/escaperoom';
+import { playSound, isMuted, setMuted } from '../lib/audio';
+import { speak, stopSpeaking, speechSupported } from '../lib/speech';
 
 const RISK = {
   low: { label: 'LOW', color: ER.emerald },
@@ -46,7 +48,11 @@ export default function MissionPlay() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
+  // Sound effects (unlock/lock) + spoken narration of the Game Master.
+  const [muted, setMutedState] = useState(isMuted());
+  const [narrate, setNarrate] = useState(false);
   const chatEndRef = useRef(null);
+  const spokenCountRef = useRef(0);
 
   useEffect(() => {
     apiGet(`/api/missions/${missionId}`).then(setMission).catch(() => setNotFound(true));
@@ -54,6 +60,26 @@ export default function MissionPlay() {
   }, [missionId]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat]);
+
+  // When narration is on, read each new Game Master reply / hint aloud.
+  useEffect(() => {
+    if (!narrate) { spokenCountRef.current = chat.length; return; }
+    if (chat.length > spokenCountRef.current) {
+      const latest = chat[chat.length - 1];
+      if (latest && (latest.role === 'game-master' || latest.role === 'hint')) speak(latest.content);
+    }
+    spokenCountRef.current = chat.length;
+  }, [chat, narrate]);
+
+  // Stop any narration when leaving the room.
+  useEffect(() => () => stopSpeaking(), []);
+
+  function toggleMuted() {
+    setMutedState((m) => { const next = !m; setMuted(next); return next; });
+  }
+  function toggleNarrate() {
+    setNarrate((n) => { const next = !n; if (!next) stopSpeaking(); return next; });
+  }
 
   useEffect(() => {
     if (phase !== 'playing') return;
@@ -74,6 +100,7 @@ export default function MissionPlay() {
     try {
       const result = await apiPost('/api/missions/evaluate', { missionId, stepId: step.id, choiceId: choice.id });
       setFeedback(result);
+      playSound(result.correct ? 'unlock' : 'lock');
       setDecisions((prev) => [...prev, { stepId: step.id, correct: result.correct, risk: result.risk }]);
       if (!result.correct && result.risk === 'high') setWorstRisk('high');
     } finally {
@@ -123,6 +150,7 @@ export default function MissionPlay() {
       });
       setReport(result);
       setPhase('report');
+      playSound('escape');
     } finally {
       setLoading(false);
     }
@@ -173,6 +201,20 @@ export default function MissionPlay() {
         <button onClick={() => navigate('/missions')} className="flex items-center gap-1.5 font-type text-xs uppercase tracking-wider text-stone-400 transition hover:text-rose-300">
           <ArrowLeft className="h-4 w-4" /> Leave
         </button>
+        <div className="flex items-center gap-1.5">
+          <button onClick={toggleMuted} title={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+            aria-label={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+            className={`flex h-8 w-8 items-center justify-center rounded-md border transition ${muted ? 'border-white/10 text-stone-500 hover:text-stone-300' : 'border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20'}`}>
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+          {speechSupported && (
+            <button onClick={toggleNarrate} title={narrate ? 'Stop narrating the Game Master' : 'Narrate the Game Master aloud'}
+              aria-label={narrate ? 'Stop narration' : 'Narrate the Game Master aloud'} aria-pressed={narrate}
+              className={`flex h-8 w-8 items-center justify-center rounded-md border transition ${narrate ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20' : 'border-white/10 text-stone-500 hover:text-stone-300'}`}>
+              <Megaphone className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <div className="h-8 w-px bg-white/10" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -207,6 +249,13 @@ export default function MissionPlay() {
               <div className="mb-4 flex items-center gap-2">
                 <Lock className="h-5 w-5" style={{ color: door }} />
                 <p className="stamp-label" style={{ color: door }}>THE DOOR LOCKS BEHIND YOU</p>
+                {speechSupported && (
+                  <button onClick={() => speak(`${mission.briefing}. The scene: ${mission.scenario}`)}
+                    title="Read the briefing aloud" aria-label="Read the briefing aloud"
+                    className="ml-auto flex items-center gap-1.5 rounded border border-amber-400/40 px-2.5 py-1 font-type text-[11px] uppercase tracking-wider text-amber-300 transition hover:bg-amber-400/10">
+                    <Volume2 className="h-3.5 w-3.5" /> Read aloud
+                  </button>
+                )}
               </div>
               <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
                 className="max-w-3xl text-[15px] leading-relaxed text-stone-300">{mission.briefing}</motion.p>
@@ -232,7 +281,7 @@ export default function MissionPlay() {
 
               <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                onClick={() => { setStartedAt(Date.now()); setElapsed(0); setPhase('playing'); }}
+                onClick={() => { playSound('door'); setStartedAt(Date.now()); setElapsed(0); setPhase('playing'); }}
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-md py-4 font-display text-base font-bold uppercase tracking-[0.2em] text-black md:w-auto md:px-10"
                 style={{ background: `linear-gradient(90deg, ${ER.gold}, ${ER.ember})`, boxShadow: `0 0 30px -6px ${ER.amber}` }}>
                 <DoorOpen className="h-5 w-5" /> Enter the room

@@ -36,12 +36,21 @@ Register / demo login  ->  land in a Team (with a Role)  ->  Admin uploads docs
 
 ### Demo accounts (seeded on first run)
 
-| Email | Password | Role |
-|-------|----------|------|
-| `demo-admin@dbquest.ai` | `demo123` | Admin |
-| `demo-member@dbquest.ai` | `demo123` | Member |
+On first boot the app seeds **three demo teams**, each with its own admin + member
+(all passwords `demo123`):
 
-*Continue as demo user* logs in as the demo admin.
+| Email | Password | Team | Role |
+|-------|----------|------|------|
+| `demo-admin@dbquest.ai` | `demo123` | Deutsche Bank Demo Team | Admin |
+| `demo-member@dbquest.ai` | `demo123` | Deutsche Bank Demo Team | Member |
+| `atlas-admin@dbquest.ai` | `demo123` | Atlas Engineering Squad | Admin |
+| `atlas-member@dbquest.ai` | `demo123` | Atlas Engineering Squad | Member |
+| `nimbus-admin@dbquest.ai` | `demo123` | Nimbus Cloud Platform | Admin |
+| `nimbus-member@dbquest.ai` | `demo123` | Nimbus Cloud Platform | Member |
+
+*Continue as demo user* logs in as `demo-admin@dbquest.ai`, who is also an admin of
+all three teams — use the top-bar team switcher to move between them and see each
+team's isolated documents, missions, and insights.
 
 ---
 
@@ -116,8 +125,27 @@ npm run dev        # http://localhost:5173
 Open **http://localhost:5173** and click **Continue as demo user**.
 
 ### Go live (optional)
-Copy `backend/.env.example` -> `backend/.env`, set `AI_PROVIDER` + a key, and restart the
-backend. Check `http://localhost:8000/api/health` -> `liveAi: true`.
+Copy `backend/.env.example` -> `backend/.env`, set `AI_PROVIDER` + the matching
+credentials, and **restart** the backend (env is read once at startup). Check
+`http://localhost:8000/api/health` -> `liveAi: true`.
+
+Provider-specific setup:
+
+- **OpenAI** — `AI_PROVIDER=openai`, `OPENAI_API_KEY=sk-...`. Optional:
+  `OPENAI_MODEL` (default `gpt-4o-mini`), `OPENAI_EMBEDDING_MODEL`
+  (default `text-embedding-3-small`). Enables live answers **and** embeddings search.
+- **Azure OpenAI** — `AI_PROVIDER=azure`, `AZURE_API_KEY`, and `AZURE_ENDPOINT`.
+  - `AZURE_ENDPOINT` must be the **bare resource root** — e.g.
+    `https://<resource>.openai.azure.com` — **without** any `/openai/v1` suffix
+    (the code appends the `/openai/deployments/...` path itself).
+  - `AZURE_DEPLOYMENT` / `AZURE_EMBEDDING_DEPLOYMENT` are your **deployment names**
+    (the names you gave the models in Azure), not raw model ids.
+  - `AZURE_API_VERSION` defaults to `2024-02-01`.
+- **Gemini** — `AI_PROVIDER=gemini`, `GEMINI_API_KEY`. Optional `GEMINI_MODEL`
+  (default `gemini-2.0-flash`). Chat only — document search stays on TF-IDF.
+
+The live path always **falls back to the offline mock on any error**, so a bad key or
+an unreachable model degrades gracefully instead of breaking the app.
 
 ---
 
@@ -130,24 +158,34 @@ else -> the React SPA (`index.html`).
 ### Steps
 1. Push this repo to GitHub/GitLab/Bitbucket.
 2. In Vercel, **Add New… → Project** and import the repo.
-3. Set **Root Directory** to **`db-quest-ai-share`** (the folder that contains
-   `vercel.json`, `frontend/`, and `backend/`). Leave the build/output settings on their
-   defaults — `vercel.json` drives the build.
+3. Leave **Root Directory** at the **repo root** — `vercel.json`, `frontend/`, and
+   `backend/` all live there. Leave the build/output settings on their defaults;
+   `vercel.json` drives the build.
 4. Add environment variables (Project → Settings → Environment Variables) as needed:
    - `JWT_SECRET` — a long random string (**required for production**).
-   - `AI_PROVIDER` + the matching key (`OPENAI_API_KEY`, `AZURE_*`, or `GEMINI_API_KEY`)
-     to enable live AI. Omit for offline mock mode.
+   - `AI_PROVIDER` + the matching credentials (`OPENAI_API_KEY`, the `AZURE_*` set,
+     or `GEMINI_API_KEY`) to enable live AI. Omit for offline mock mode. See
+     **Environment variables** below for the per-provider keys and the Azure endpoint
+     format gotcha.
    - `DATABASE_URL` — a managed Postgres URL for durable data (see the note below).
+     **Must** use the `postgresql+psycopg://` scheme (not plain `postgresql://`).
    - `VITE_API_URL` is **not** needed — the frontend calls the same-origin `/api`.
-5. **Deploy.** When it's live, open `/api/health` to confirm the API responds.
+5. **Deploy.** When it's live, open `/api/health` to confirm the API responds
+   (`liveAi: true` once a provider is configured).
+
+> **Env vars only apply to *new* deployments.** After adding or changing any variable
+> you must create a fresh deployment — Vercel binds env at deploy time, so clicking
+> "Redeploy" on an existing (prebuilt) deployment will **not** pick up changes.
 
 ### Serverless notes & limitations
 - **Filesystem is read-only except `/tmp`.** The app auto-detects Vercel and writes the
   default SQLite file to `/tmp`, so it boots and seeds the demo with zero config.
 - **`/tmp` is ephemeral and per-instance.** Uploaded documents and generated missions
   written to the default SQLite DB do **not** survive cold starts or scale-out. For real
-  persistence set `DATABASE_URL` to a managed Postgres (Vercel Postgres / Neon / Supabase)
-  and add `psycopg[binary]` to `backend/requirements.txt` — no code changes needed.
+  persistence set `DATABASE_URL` to a managed Postgres (Vercel Postgres / Neon / Supabase).
+  The `psycopg[binary]` driver is already in `backend/requirements.txt`, so no code
+  changes are needed — just use the `postgresql+psycopg://user:pass@host/db?sslmode=require`
+  scheme. On first boot the app auto-creates all tables and seeds the demo teams.
 - **DB init is lazy + idempotent** (runs on the first request), so it works even though
   serverless bridges don't always run ASGI lifespan startup.
 - No long-running/background tasks are used; each request completes within the function
@@ -155,49 +193,80 @@ else -> the React SPA (`index.html`).
 
 ### CI/CD (GitHub Actions)
 
-`.github/workflows/vercel-deploy.yml` (at the **repo root**) runs on every push/PR:
+`.github/workflows/vercel-deploy.yml` (at the **repo root**) runs on every push/PR to
+`main` (and `Simple-design`):
 
 1. **verify** — installs backend deps + runs an import/health smoke test (with `VERCEL=1`
    to exercise the serverless path), then `npm ci` + `npm run build` for the frontend.
-2. **deploy** — uses the Vercel CLI. **Pull requests → Preview** deploy (the preview URL is
-   commented on the PR); **push to `main` → Production** deploy.
+2. **deploy** — runs `vercel deploy` so the build happens **remotely on Vercel**, which
+   always uses the project's latest env vars and settings. **Pull requests → Preview**
+   deploy (the preview URL is commented on the PR); **push to `main` → Production** deploy.
 
-**One-time setup** (so CLI deploys and the dashboard agree on the app folder):
+> The deploy step intentionally does **not** use `vercel build --prebuilt`. Remote builds
+> run on Vercel's own builders (which ship the `uv` tool `@vercel/python` needs), avoid
+> stale-env issues, and produce normal deployments you can redeploy from the dashboard.
 
-```bash
-# From the repo root, link the project once and grab its IDs:
-npm i -g vercel
-vercel link            # choose/create the project; set Root Directory = db-quest-ai-share
-cat .vercel/project.json   # -> "orgId" and "projectId"
-```
+**Two separate sets of credentials — don't mix them up:**
 
-Then add three **GitHub repo secrets** (Settings → Secrets and variables → Actions):
+**(a) GitHub repo secrets** — let the workflow authenticate to Vercel and deploy.
+Add them at *Settings → Secrets and variables → Actions*:
 
 | Secret | Where to get it |
 |--------|-----------------|
 | `VERCEL_TOKEN` | Vercel → Account Settings → **Tokens** → create token |
-| `VERCEL_ORG_ID` | `.vercel/project.json` → `orgId` |
+| `VERCEL_ORG_ID` | `.vercel/project.json` → `orgId` (run `vercel link` once to generate) |
 | `VERCEL_PROJECT_ID` | `.vercel/project.json` → `projectId` |
 
-Set production env vars (`JWT_SECRET`, optional `AI_PROVIDER`/keys, optional `DATABASE_URL`)
-in the Vercel dashboard — they apply to CLI deploys too. If you use the Actions pipeline,
-disable Vercel's own Git integration for the project to avoid double deploys.
+These are **only** for deployment — they have nothing to do with the app's AI or database.
+
+**(b) Vercel project environment variables** — what the *running app* reads at request
+time. Set these in the **Vercel dashboard** (Project → Settings → Environment Variables),
+**not** in GitHub:
+
+| Variable | Notes |
+|----------|-------|
+| `JWT_SECRET` | long random string — required for production |
+| `AI_PROVIDER` + provider keys | `openai` / `azure` / `gemini` + matching credentials (see below) |
+| `DATABASE_URL` | managed Postgres, `postgresql+psycopg://...` — for durable data |
+
+Vercel env vars apply to CLI **and** Actions deploys. If you rely on this Actions
+pipeline, disable Vercel's own Git integration for the project to avoid double deploys.
 
 ---
 
 ## Environment variables
 
+All are optional — with no config the app runs fully offline (mock AI + TF-IDF search +
+auto-created SQLite). Set values in `backend/.env` locally, or in the Vercel dashboard for
+deploys. See `backend/.env.example` for a copy-paste template.
+
 | Var | Default | Meaning |
 |-----|---------|---------|
 | `AI_PROVIDER` | `mock` | `mock` \| `openai` \| `azure` \| `gemini` |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_EMBEDDING_MODEL` | – | OpenAI chat + embeddings |
-| `AZURE_API_KEY` / `AZURE_ENDPOINT` / `AZURE_DEPLOYMENT` / `AZURE_EMBEDDING_DEPLOYMENT` | – | Azure OpenAI |
-| `GEMINI_API_KEY` / `GEMINI_MODEL` | – | Gemini chat |
-| `JWT_SECRET` | dev secret | JWT signing key (change in prod) |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080` | token lifetime |
-| `DATABASE_URL` | SQLite file | e.g. `postgresql+psycopg://...` for Postgres |
-| `SEED_DEMO` | `true` | seed the demo team + content on first run |
-| `CORS_ORIGINS` | `http://localhost:5173` | allowed frontend origins |
+| **OpenAI** | | *(when `AI_PROVIDER=openai`)* |
+| `OPENAI_API_KEY` | – | `sk-...` key — enables live chat **and** embeddings search |
+| `OPENAI_MODEL` | `gpt-4o-mini` | chat model |
+| `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | embeddings model |
+| **Azure OpenAI** | | *(when `AI_PROVIDER=azure`)* |
+| `AZURE_API_KEY` | – | resource key |
+| `AZURE_ENDPOINT` | – | **bare** resource root, e.g. `https://<res>.openai.azure.com` — **no** `/openai/v1` suffix |
+| `AZURE_DEPLOYMENT` | `gpt-4o-mini` | your chat **deployment name** (not a model id) |
+| `AZURE_EMBEDDING_DEPLOYMENT` | `text-embedding-3-small` | your embeddings **deployment name** |
+| `AZURE_API_VERSION` | `2024-02-01` | API version |
+| **Gemini** | | *(when `AI_PROVIDER=gemini`; chat only, search stays on TF-IDF)* |
+| `GEMINI_API_KEY` | – | Google AI Studio key |
+| `GEMINI_MODEL` | `gemini-2.0-flash` | chat model |
+| **Auth / DB / misc** | | |
+| `JWT_SECRET` | dev secret | JWT signing key (**change in prod**) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080` | token lifetime (7 days) |
+| `DATABASE_URL` | SQLite file (`/tmp` on Vercel) | Postgres via `postgresql+psycopg://user:pass@host/db?sslmode=require` |
+| `SEED_DEMO` | `true` | seed the demo teams + content on first run |
+| `CORS_ORIGINS` | `http://localhost:5173` | comma-separated allowed frontend origins (`*` for any) |
+
+> **Two gotchas we hit in practice:** (1) `DATABASE_URL` must use `postgresql+psycopg://`
+> — plain `postgresql://` selects the uninstalled psycopg2 driver and fails. (2) A
+> reasoning-family Azure/OpenAI model (e.g. `gpt-5-mini`, `o1`) rejects a custom
+> `temperature`; the provider client sends none, so those models work out of the box.
 
 ---
 

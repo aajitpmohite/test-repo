@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiPost } from '../api';
 import { useToast } from '../context/ToastContext';
+import { useHealth } from '../hooks/useHealth';
 import { PageHeader, Spinner, EmptyState, DifficultyBadge, TopicBadge } from '../components/ui';
 import { GenerateIcon, SparkIcon, ArrowRightIcon, AlertIcon, BookIcon } from '../components/icons';
 
@@ -10,6 +11,7 @@ const difficulties = ['Beginner', 'Intermediate', 'Expert'];
 
 export default function AdminGenerator() {
   const toast = useToast();
+  const { liveAi, aiProvider } = useHealth();
   const [topic, setTopic] = useState('Cybersecurity');
   const [audience, setAudience] = useState('team member');
   const [difficulty, setDifficulty] = useState('Beginner');
@@ -72,8 +74,9 @@ export default function AdminGenerator() {
             {loading ? 'Generating…' : 'Generate mission'}
           </button>
           <p className="text-xs leading-relaxed text-faint">
-            In offline mode this uses deterministic archetypes keyed off your topic. With a live provider configured, it
-            calls the model and coerces the result into the mission schema.
+            {liveAi
+              ? `Live AI (${aiProvider}) generates the mission and it's coerced into the mission schema (falling back to a deterministic archetype if the model is unavailable).`
+              : 'In offline demo mode this uses deterministic archetypes keyed off your topic. Configure an AI provider to generate missions with a live model.'}
           </p>
         </form>
 
