@@ -95,6 +95,13 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      # @vercel/python's build step shells out to `uv` to install
+      # dependencies. Vercel's own cloud builders ship it preinstalled;
+      # a plain GitHub-hosted runner does not, so `vercel build` fails
+      # with "uv is required but was not found in PATH" without this.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Deploy
         id: deploy
         run: |
