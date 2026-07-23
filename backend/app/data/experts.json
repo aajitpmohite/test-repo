@@ -40,5 +40,26 @@
     "topics": ["support", "operations", "service levels"],
     "owns": "Support coordination",
     "contact": "samir.patel@dbquest.local"
+  },
+  {
+    "name": "Jordan Lee",
+    "role": "DevOps / Deployment Lead",
+    "topics": ["deployment", "ci/cd", "infrastructure", "vercel", "github actions", "rollbacks"],
+    "owns": "Deployment pipelines",
+    "contact": "jordan.lee@dbquest.local"
+  },
+  {
+    "name": "Priya Nair",
+    "role": "Engineering Lead",
+    "topics": ["coding", "code review", "software architecture", "best practices", "backend"],
+    "owns": "Engineering standards",
+    "contact": "priya.nair@dbquest.local"
+  },
+  {
+    "name": "Tom Becker",
+    "role": "Cloud Platform Engineer",
+    "topics": ["cloud", "python", "fastapi", "apis", "monitoring", "scaling"],
+    "owns": "Backend platform reliability",
+    "contact": "tom.becker@dbquest.local"
   }
 ]
