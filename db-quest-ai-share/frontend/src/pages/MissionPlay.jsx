@@ -1,549 +1,499 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api } from '../api'
+// THE ESCAPE ROOM — cinematic mission play screen.
+// Game logic is unchanged (sanitized fetch, server-side evaluate, AI Game Master chat,
+// progressive hints, server-saved report). Only the presentation is an escape-room:
+// you're locked in, read the clues, pick the right move to pop each lock, and escape.
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  BulbIcon,
-  CheckIcon,
-  ClockIcon,
-  SendIcon,
-  ShieldIcon,
-  SparkIcon,
-  TrophyIcon,
-  XIcon,
-} from '../components/icons'
-import {
-  Badge,
-  DifficultyBadge,
-  RichText,
-  Spinner,
-  TopicBadge,
-} from '../components/ui'
-import { getProgress } from './Missions'
+  ArrowLeft, DoorOpen, Lock, LockOpen, KeyRound, Timer, Puzzle, Lightbulb, Send,
+  Trophy, AlertTriangle, CheckCircle2, ChevronRight, Drama, Flame, Fingerprint,
+  Sparkles, Eye, Search,
+} from 'lucide-react';
+import { apiGet, apiPost } from '../api';
+import { EscapeRoom, Panel, Tag, CountUp, ER, ROOM_COLOR } from '../components/escaperoom';
 
-const RISK_ORDER = { low: 0, medium: 1, high: 2 }
-const worseRisk = (a, b) => (RISK_ORDER[b] > RISK_ORDER[a] ? b : a)
+const RISK = {
+  low: { label: 'LOW', color: ER.emerald },
+  medium: { label: 'MEDIUM', color: ER.amber },
+  high: { label: 'HIGH', color: ER.rust },
+};
+const CLUE_QUESTIONS = [
+  'Who really sent this?',
+  'Where does the link actually go?',
+  'What are they asking me to do?',
+  'Why is it so urgent?',
+  'How should I report it?',
+];
+const fmtTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.max(0, s % 60)).padStart(2, '0')}`;
 
 export default function MissionPlay() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-
-  const [mission, setMission] = useState(null)
-  const [error, setError] = useState('')
-  const [phase, setPhase] = useState('briefing') // briefing | playing | report
-
-  const [stepIndex, setStepIndex] = useState(0)
-  const [decisions, setDecisions] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [feedback, setFeedback] = useState(null)
-  const [evaluating, setEvaluating] = useState(false)
-  const stepState = useRef({ firstCorrect: null, worstRisk: 'low' })
-
-  const [hintsUsed, setHintsUsed] = useState(0)
-  const hintLevel = useRef(0)
-  const startTime = useRef(null)
-
-  const [report, setReport] = useState(null)
-
-  // Game Master chat
-  const [messages, setMessages] = useState([])
-  const [chatInput, setChatInput] = useState('')
-  const [chatBusy, setChatBusy] = useState(false)
-  const [suggestions, setSuggestions] = useState([])
-  const chatEndRef = useRef(null)
+  const { missionId } = useParams();
+  const navigate = useNavigate();
+  const [mission, setMission] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [selectedChoice, setSelectedChoice] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [chat, setChat] = useState([]);
+  const [message, setMessage] = useState('');
+  const [phase, setPhase] = useState('briefing');
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [decisions, setDecisions] = useState([]);
+  const [, setWorstRisk] = useState('low');
+  const [startedAt, setStartedAt] = useState(Date.now());
+  const [elapsed, setElapsed] = useState(0);
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
-    api
-      .getMission(id)
-      .then((m) => {
-        setMission(m)
-        setMessages([
-          {
-            role: 'assistant',
-            content:
-              '\ud83d\udd75\ufe0f I\'m your AI Game Master. Ask me questions to investigate and uncover the solution \u2014 for example: "Who really sent this?", "Where does the link go?", "What are they asking me to do?", "Why is it so urgent?", or "How should I report it?". Tap a suggested question below, or type your own.',
-          },
-        ])
-      })
-      .catch((e) => setError(e.message))
-  }, [id])
+    apiGet(`/api/missions/${missionId}`).then(setMission).catch(() => setNotFound(true));
+    setChat([{ role: 'game-master', content: "I'm your Game Master. Don't rush the lock — investigate first. Ask me things like “Who really sent this?” or “Why is it so urgent?” and I'll point out what feels off." }]);
+  }, [missionId]);
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, chatBusy])
+    if (phase !== 'playing') return;
+    const t = setInterval(() => setElapsed(Math.round((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [phase, startedAt]);
 
-  const currentStep = mission?.steps?.[stepIndex]
+  const step = mission?.steps?.[currentStep];
+  const isLastStep = mission ? currentStep === mission.steps.length - 1 : false;
+  const limitSeconds = (mission?.estimatedMinutes || 5) * 60;
+  const remaining = Math.max(0, limitSeconds - elapsed);
+  const lowTime = phase === 'playing' && remaining <= 60;
 
-  function begin() {
-    startTime.current = Date.now()
-    setPhase('playing')
-  }
-
-  async function choose(choice) {
-    if (evaluating || feedback?.correct) return
-    setSelected(choice.id)
-    setEvaluating(true)
+  async function evaluateChoice(choice) {
+    if (loading || feedback?.correct) return;
+    setSelectedChoice(choice.id);
+    setLoading(true);
     try {
-      const res = await api.evaluate({
-        missionId: mission.id,
-        stepId: currentStep.id,
-        choiceId: choice.id,
-      })
-      setFeedback(res)
-      const ss = stepState.current
-      if (ss.firstCorrect === null) ss.firstCorrect = res.correct
-      if (!res.correct) ss.worstRisk = worseRisk(ss.worstRisk, res.risk)
-    } catch (e) {
-      setError(e.message)
+      const result = await apiPost('/api/missions/evaluate', { missionId, stepId: step.id, choiceId: choice.id });
+      setFeedback(result);
+      setDecisions((prev) => [...prev, { stepId: step.id, correct: result.correct, risk: result.risk }]);
+      if (!result.correct && result.risk === 'high') setWorstRisk('high');
     } finally {
-      setEvaluating(false)
+      setLoading(false);
     }
   }
 
-  function proceed() {
-    const ss = stepState.current
-    const decision = {
-      stepId: currentStep.id,
-      choiceId: selected,
-      correct: !!ss.firstCorrect,
-      risk: ss.firstCorrect ? 'low' : ss.worstRisk,
-    }
-    const next = [...decisions, decision]
-    setDecisions(next)
-    setFeedback(null)
-    setSelected(null)
-    stepState.current = { firstCorrect: null, worstRisk: 'low' }
-    if (stepIndex + 1 < mission.steps.length) {
-      setStepIndex(stepIndex + 1)
-    } else {
-      finish(next)
-    }
+  function advance() {
+    if (isLastStep) return completeMission();
+    setCurrentStep((p) => p + 1);
+    setSelectedChoice(null);
+    setFeedback(null);
   }
 
-  function tryAgain() {
-    setFeedback(null)
-    setSelected(null)
-  }
-
-  async function finish(finalDecisions) {
-    setPhase('report')
-    const duration = Math.round((Date.now() - startTime.current) / 1000)
+  async function askGameMaster(text) {
+    const trimmed = (text || '').trim();
+    if (!trimmed || chatBusy) return;
+    setMessage('');
+    setChat((prev) => [...prev, { role: 'player', content: trimmed }]);
+    setChatBusy(true);
     try {
-      const rep = await api.report({
-        missionId: mission.id,
-        decisions: finalDecisions,
-        hintsUsed,
-        durationSeconds: duration,
-      })
-      setReport(rep)
-      const prog = getProgress()
-      prog[mission.id] = { score: rep.score, grade: rep.grade, date: Date.now() }
-      localStorage.setItem('dbquest_progress', JSON.stringify(prog))
-    } catch (e) {
-      setError(e.message)
-    }
-  }
-
-  async function sendChat(text) {
-    const msg = (text ?? chatInput).trim()
-    if (!msg || chatBusy) return
-    const history = messages.map((m) => ({ role: m.role, content: m.content }))
-    setMessages((m) => [...m, { role: 'user', content: msg }])
-    setChatInput('')
-    setSuggestions([])
-    setChatBusy(true)
-    try {
-      const res = await api.interact({ missionId: mission.id, message: msg, history })
-      setMessages((m) => [...m, { role: 'assistant', content: res.reply }])
-      setSuggestions(res.suggestions || [])
-    } catch (e) {
-      setMessages((m) => [...m, { role: 'assistant', content: `(Game Master unavailable: ${e.message})` }])
+      const result = await apiPost('/api/missions/interact', { missionId, message: trimmed, history: chat });
+      setChat((prev) => [...prev, { role: 'game-master', content: result.reply }]);
     } finally {
-      setChatBusy(false)
+      setChatBusy(false);
     }
   }
 
-  async function getHint() {
-    if (chatBusy) return
-    const level = Math.min(hintLevel.current + 1, 3)
-    hintLevel.current = level
-    setHintsUsed((h) => h + 1)
-    setChatBusy(true)
+  async function requestHint() {
+    if (chatBusy || phase === 'report') return;
+    setChatBusy(true);
     try {
-      const res = await api.hint({ missionId: mission.id, stepId: currentStep?.id, level })
-      setMessages((m) => [...m, { role: 'assistant', content: `Hint ${level}/3 — ${res.hint}` }])
-    } catch (e) {
-      setError(e.message)
+      const level = hintsUsed + 1;
+      const result = await apiPost('/api/missions/hint', { missionId, stepId: step.id, level });
+      setChat((prev) => [...prev, { role: 'hint', content: result.hint, level }]);
+      setHintsUsed(level);
     } finally {
-      setChatBusy(false)
+      setChatBusy(false);
     }
   }
 
-  if (error)
+  async function completeMission() {
+    setLoading(true);
+    try {
+      const result = await apiPost('/api/missions/report', {
+        missionId, decisions, hintsUsed, durationSeconds: Math.round((Date.now() - startedAt) / 1000),
+      });
+      setReport(result);
+      setPhase('report');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function restart() {
+    setPhase('briefing');
+    setCurrentStep(0);
+    setSelectedChoice(null);
+    setFeedback(null);
+    setDecisions([]);
+    setReport(null);
+    setHintsUsed(0);
+    setElapsed(0);
+    setStartedAt(Date.now());
+  }
+
+  if (notFound) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-rose-600">{error}</p>
-        <Link to="/missions" className="btn-outline mt-4 inline-flex">
-          <ArrowLeftIcon className="h-4 w-4" /> Back to missions
-        </Link>
-      </div>
-    )
-
-  if (!mission)
+      <EscapeRoom>
+        <Panel className="mx-auto mt-16 max-w-md p-8 text-center">
+          <Lock className="mx-auto h-10 w-10 text-rose-400" />
+          <p className="mt-3 font-display text-xl uppercase text-white">Room not found</p>
+          <p className="mt-1 font-type text-xs text-stone-500">This room isn't available to your team.</p>
+          <button onClick={() => navigate('/missions')} className="clue-frame mt-5 rounded-md px-4 py-2 font-display text-sm uppercase tracking-wider text-amber-300 hover:bg-amber-400/10">
+            Back to rooms
+          </button>
+        </Panel>
+      </EscapeRoom>
+    );
+  }
+  if (!mission) {
     return (
-      <div className="flex justify-center py-20 text-brand-600">
-        <Spinner className="h-8 w-8" />
-      </div>
-    )
-
-  return (
-    <div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link to="/missions" className="btn-ghost p-2">
-            <ArrowLeftIcon />
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold text-ink">{mission.title}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <TopicBadge topic={mission.topic} />
-              <DifficultyBadge level={mission.difficulty} />
-              <Badge color="slate">
-                <TrophyIcon className="h-3.5 w-3.5" /> {mission.points} pts
-              </Badge>
-            </div>
-          </div>
+      <EscapeRoom>
+        <div className="flex items-center justify-center gap-3 py-32 font-type text-sm text-amber-300">
+          <KeyRound className="h-5 w-5 animate-pulse" /> UNLOCKING THE DOOR…
         </div>
-        {phase === 'playing' && (
-          <Badge color="blue">
-            Step {stepIndex + 1} / {mission.steps.length}
-          </Badge>
-        )}
-      </div>
+      </EscapeRoom>
+    );
+  }
 
-      {phase === 'briefing' && <Briefing mission={mission} onBegin={begin} />}
+  const door = ROOM_COLOR[mission.topic] || ER.amber;
 
-      {phase === 'playing' && (
-        <div className="grid gap-5 lg:grid-cols-5">
-          <div className="lg:col-span-3">
-            <ProgressBar index={stepIndex} total={mission.steps.length} />
-            <DecisionPanel
-              step={currentStep}
-              selected={selected}
-              feedback={feedback}
-              evaluating={evaluating}
-              onChoose={choose}
-              onProceed={proceed}
-              onTryAgain={tryAgain}
-              isLast={stepIndex + 1 === mission.steps.length}
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <GameMaster
-              messages={messages}
-              chatInput={chatInput}
-              setChatInput={setChatInput}
-              onSend={sendChat}
-              onHint={getHint}
-              busy={chatBusy}
-              suggestions={suggestions}
-              hintsUsed={hintsUsed}
-              chatEndRef={chatEndRef}
-            />
-          </div>
-        </div>
-      )}
-
-      {phase === 'report' && (
-        <ReportView
-          report={report}
-          mission={mission}
-          hintsUsed={hintsUsed}
-          onReplay={() => navigate(0)}
-        />
-      )}
-    </div>
-  )
-}
-
-function ProgressBar({ index, total }) {
-  const pct = Math.round((index / total) * 100)
   return (
-    <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-      <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${pct}%` }} />
-    </div>
-  )
-}
-
-function Briefing({ mission, onBegin }) {
-  return (
-    <div className="card overflow-hidden">
-      <div className="bg-gradient-to-br from-brand-700 to-ink p-6 text-white">
-        <span className="badge bg-white/15 text-white">
-          <ShieldIcon className="h-3.5 w-3.5" /> Mission briefing
-        </span>
-        <p className="mt-3 text-lg leading-relaxed">{mission.briefing}</p>
-      </div>
-      <div className="p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Objectives</h3>
-        <ul className="mt-3 space-y-2">
-          {mission.objectives?.map((o, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-              <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
-                {i + 1}
-              </span>
-              {o}
-            </li>
-          ))}
-        </ul>
-        <button onClick={onBegin} className="btn-primary mt-6 w-full sm:w-auto">
-          Begin mission <ArrowRightIcon className="h-4 w-4" />
+    <EscapeRoom>
+      {/* ===== Room header ===== */}
+      <Panel className="mb-5 flex flex-wrap items-center gap-4 px-4 py-3" glow={door}>
+        <button onClick={() => navigate('/missions')} className="flex items-center gap-1.5 font-type text-xs uppercase tracking-wider text-stone-400 transition hover:text-rose-300">
+          <ArrowLeft className="h-4 w-4" /> Leave
         </button>
-      </div>
-    </div>
-  )
-}
-
-function DecisionPanel({ step, selected, feedback, evaluating, onChoose, onProceed, onTryAgain, isLast }) {
-  return (
-    <div className="card p-6">
-      <h2 className="text-lg font-semibold text-ink">{step.prompt}</h2>
-      <div className="mt-4 space-y-3">
-        {step.choices.map((c) => {
-          const isSel = selected === c.id
-          const showRes = feedback && isSel
-          const locked = feedback?.correct
-          let ring = 'border-slate-200 hover:border-brand-300'
-          if (showRes) ring = feedback.correct ? 'border-emerald-400 bg-emerald-50' : 'border-rose-400 bg-rose-50'
-          return (
-            <button
-              key={c.id}
-              onClick={() => onChoose(c)}
-              disabled={evaluating || locked}
-              className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition disabled:cursor-default ${ring}`}
-            >
-              <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-slate-100 font-bold text-slate-600">
-                {c.id}
-              </span>
-              <span className="flex-1 text-slate-700">{c.text}</span>
-              {showRes &&
-                (feedback.correct ? (
-                  <CheckIcon className="h-5 w-5 text-emerald-600" />
-                ) : (
-                  <XIcon className="h-5 w-5 text-rose-600" />
-                ))}
-              {evaluating && isSel && <Spinner className="h-4 w-4 text-brand-600" />}
-            </button>
-          )
-        })}
-      </div>
-
-      {feedback && (
-        <div
-          className={`mt-5 animate-in rounded-xl border p-4 ${
-            feedback.correct ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Badge color={feedback.correct ? 'green' : 'red'}>
-              {feedback.correct ? 'Correct decision' : `Risky · ${feedback.risk}`}
-            </Badge>
+        <div className="h-8 w-px bg-white/10" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="stamp-label text-stone-500">THE ROOM</p>
+            <Tag color={door}>{mission.topic}</Tag>
           </div>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            <p>{feedback.explanation}</p>
-            <p className="text-slate-600">
-              <span className="font-semibold">Policy:</span> {feedback.policyPrinciple}
-            </p>
-            <p className="text-slate-600">
-              <span className="font-semibold">In real life:</span> {feedback.realWorldAction}
+          <h1 className="truncate font-display text-xl font-bold uppercase tracking-wide text-white md:text-2xl">{mission.title}</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          {/* the escape clock */}
+          <div className={`text-right ${lowTime ? 'er-shake' : ''}`}>
+            <p className="stamp-label text-stone-500">TIME LEFT</p>
+            <p className={`font-display text-2xl font-bold leading-none ${lowTime ? 'text-rose-400' : 'text-amber-300'}`}
+              style={{ textShadow: `0 0 14px ${lowTime ? ER.rust : ER.amber}66` }}>
+              {fmtTime(remaining)}
             </p>
           </div>
-          <div className="mt-4 flex gap-2">
-            {feedback.correct ? (
-              <button onClick={onProceed} className="btn-primary">
-                {isLast ? 'See my results' : 'Continue'} <ArrowRightIcon className="h-4 w-4" />
-              </button>
-            ) : (
-              <button onClick={onTryAgain} className="btn-outline">
-                Try again
-              </button>
+          {phase === 'playing' && (
+            <div className="text-right font-type text-xs">
+              <p className="stamp-label text-stone-500">LOCKS</p>
+              <p className="text-white">{currentStep + (feedback?.correct ? 1 : 0)}<span className="text-stone-600">/{mission.steps.length}</span></p>
+            </div>
+          )}
+        </div>
+      </Panel>
+
+      <AnimatePresence mode="wait">
+        {/* ============ BRIEFING — you're locked in ============ */}
+        {phase === 'briefing' && (
+          <motion.div key="briefing" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }}>
+            <Panel className="relative overflow-hidden p-6 md:p-8" glow={door}>
+              <div className="mb-4 flex items-center gap-2">
+                <Lock className="h-5 w-5" style={{ color: door }} />
+                <p className="stamp-label" style={{ color: door }}>THE DOOR LOCKS BEHIND YOU</p>
+              </div>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
+                className="max-w-3xl text-[15px] leading-relaxed text-stone-300">{mission.briefing}</motion.p>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}
+                  className="rounded-md border border-white/10 bg-black/40 p-4">
+                  <p className="stamp-label mb-2 flex items-center gap-1.5 text-stone-500"><Eye className="h-3.5 w-3.5" /> THE SCENE</p>
+                  <p className="text-sm leading-relaxed text-stone-300">{mission.scenario}</p>
+                </motion.div>
+                <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}
+                  className="rounded-md border border-white/10 bg-black/40 p-4">
+                  <p className="stamp-label mb-2 flex items-center gap-1.5 text-stone-500"><KeyRound className="h-3.5 w-3.5" /> TO ESCAPE YOU MUST</p>
+                  <ul className="space-y-1.5">
+                    {(mission.objectives || []).map((o, i) => (
+                      <li key={o} className="flex items-start gap-2 text-sm text-stone-300">
+                        <span className="font-type text-xs" style={{ color: door }}>0{i + 1}</span>{o}
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              </div>
+
+              <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                onClick={() => { setStartedAt(Date.now()); setElapsed(0); setPhase('playing'); }}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-md py-4 font-display text-base font-bold uppercase tracking-[0.2em] text-black md:w-auto md:px-10"
+                style={{ background: `linear-gradient(90deg, ${ER.gold}, ${ER.ember})`, boxShadow: `0 0 30px -6px ${ER.amber}` }}>
+                <DoorOpen className="h-5 w-5" /> Enter the room
+              </motion.button>
+            </Panel>
+          </motion.div>
+        )}
+
+        {/* ============ PLAYING ============ */}
+        {phase === 'playing' && step && (
+          <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {/* padlock stepper */}
+            <div className="mb-4 flex items-center gap-2">
+              {mission.steps.map((s, i) => {
+                const done = i < currentStep || (i === currentStep && feedback?.correct);
+                const active = i === currentStep && !feedback?.correct;
+                return (
+                  <div key={s.id} className="flex flex-1 items-center gap-2">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border ${done ? 'er-unlock' : ''}`}
+                      style={{ borderColor: done ? ER.emerald : active ? door : 'rgba(168,162,158,0.25)', background: done ? `${ER.emerald}18` : active ? `${door}18` : 'transparent' }}>
+                      {done ? <LockOpen className="h-4 w-4" style={{ color: ER.emerald }} /> : <Lock className="h-4 w-4" style={{ color: active ? door : '#78716c' }} />}
+                    </div>
+                    {i < mission.steps.length - 1 && <div className="h-px flex-1" style={{ background: done ? ER.emerald : 'rgba(255,255,255,0.1)' }} />}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+              {/* --- LEFT: THE LOCK --- */}
+              <Panel className="p-5" glow={door}>
+                <div className="mb-3 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-amber-300" />
+                  <p className="stamp-label text-amber-300">LOCK {currentStep + 1} OF {mission.steps.length}</p>
+                </div>
+
+                <p className="stamp-label text-stone-500">THE SITUATION</p>
+                <h2 className="font-display text-xl font-bold text-white">{step.prompt}</h2>
+
+                <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-400/25 bg-amber-400/[0.06] p-3">
+                  <Search className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                  <p className="text-sm leading-relaxed text-amber-100/90"><span className="stamp-label text-amber-400">CLUE // </span>{step.clue}</p>
+                </div>
+
+                <p className="mt-4 stamp-label text-stone-500">PICK THE MOVE THAT OPENS THE LOCK</p>
+                <div className="mt-2 space-y-2.5">
+                  {step.choices.map((choice, idx) => {
+                    const selected = selectedChoice === choice.id;
+                    const show = selected && feedback;
+                    const correct = show && feedback.correct;
+                    const wrong = show && !feedback.correct;
+                    return (
+                      <motion.button key={choice.id} whileHover={!feedback?.correct ? { x: 4 } : undefined}
+                        disabled={loading || feedback?.correct}
+                        onClick={() => evaluateChoice(choice)}
+                        className={`group flex w-full items-center gap-3 rounded-md border p-3.5 text-left transition disabled:cursor-not-allowed ${wrong ? 'er-shake' : ''}`}
+                        style={{
+                          borderColor: correct ? ER.emerald : wrong ? ER.rust : selected ? door : 'rgba(168,162,158,0.2)',
+                          background: correct ? `${ER.emerald}14` : wrong ? `${ER.rust}14` : 'rgba(255,255,255,0.02)',
+                        }}>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded border font-type text-xs font-bold"
+                          style={{ borderColor: correct ? ER.emerald : wrong ? ER.rust : 'rgba(168,162,158,0.35)', color: correct ? ER.emerald : wrong ? ER.rust : '#a8a29e' }}>
+                          {correct ? '✓' : wrong ? '✕' : String.fromCharCode(65 + idx)}
+                        </span>
+                        <span className="text-sm text-stone-200">{choice.text}</span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                {loading && <p className="mt-3 flex items-center gap-2 font-type text-xs text-amber-300"><KeyRound className="h-4 w-4 animate-pulse" /> TRYING THE KEY…</p>}
+
+                <AnimatePresence>
+                  {feedback && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4 overflow-hidden">
+                      <div className="rounded-md border p-4" style={{ borderColor: `${feedback.correct ? ER.emerald : ER.rust}55`, background: `${feedback.correct ? ER.emerald : ER.rust}0d` }}>
+                        <div className="flex items-center gap-2">
+                          {feedback.correct ? <LockOpen className="er-unlock h-5 w-5 text-emerald-400" /> : <AlertTriangle className="h-5 w-5 text-rose-400" />}
+                          <p className="font-display text-base font-bold uppercase tracking-wide" style={{ color: feedback.correct ? ER.emerald : ER.rust }}>
+                            {feedback.correct ? 'Lock opens!' : 'Wrong key'}
+                          </p>
+                          <span className="ml-auto stamp-label flex items-center gap-1" style={{ color: RISK[feedback.risk]?.color }}>
+                            <Flame className="h-3 w-3" /> RISK: {RISK[feedback.risk]?.label}
+                          </span>
+                        </div>
+                        <p className="mt-3 text-sm leading-relaxed text-stone-200">{feedback.feedback}</p>
+                        <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-sm leading-relaxed text-stone-400">
+                          <p>{feedback.explanation}</p>
+                          <p><span className="stamp-label text-stone-500">THE RULE // </span>{feedback.policyPrinciple}</p>
+                          <p><span className="stamp-label text-stone-500">IN REAL LIFE // </span>{feedback.realWorldAction}</p>
+                        </div>
+                        {feedback.correct ? (
+                          <button onClick={advance}
+                            className="mt-4 flex items-center gap-2 rounded-md px-5 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-black"
+                            style={{ background: `linear-gradient(90deg, ${ER.emerald}, ${ER.teal})` }}>
+                            {isLastStep ? <><DoorOpen className="h-4 w-4" /> Escape the room</> : <>Next lock <ChevronRight className="h-4 w-4" /></>}
+                          </button>
+                        ) : (
+                          <button onClick={() => { setSelectedChoice(null); setFeedback(null); }}
+                            className="mt-4 rounded-md border border-rose-400/40 px-5 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-rose-300 hover:bg-rose-400/10">
+                            Try another key
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Panel>
+
+              {/* --- RIGHT: GAME MASTER --- */}
+              <Panel className="flex h-[620px] flex-col p-0" glow={ER.amber}>
+                <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+                  <Drama className="h-4 w-4 text-amber-300" />
+                  <p className="stamp-label text-amber-300">GAME MASTER</p>
+                  <button onClick={requestHint} disabled={chatBusy}
+                    className="ml-auto flex items-center gap-1.5 rounded border border-amber-400/40 px-2.5 py-1 font-type text-[11px] uppercase tracking-wider text-amber-300 transition hover:bg-amber-400/10 disabled:opacity-40">
+                    <Lightbulb className="h-3.5 w-3.5" /> Hint{hintsUsed ? ` (${hintsUsed})` : ''}
+                  </button>
+                </div>
+
+                <div className="er-scroll flex-1 space-y-3 overflow-y-auto p-4">
+                  {chat.map((entry, i) => {
+                    if (entry.role === 'player') {
+                      return (
+                        <motion.div key={i} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="flex justify-end">
+                          <div className="max-w-[85%] rounded-md rounded-br-none border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-50">
+                            <span className="font-type text-[10px] text-amber-400/70">YOU</span>
+                            <p>{entry.content}</p>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+                    if (entry.role === 'hint') {
+                      return (
+                        <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                          <div className="max-w-[90%] rounded-md border border-yellow-400/30 bg-yellow-400/[0.08] px-3 py-2 text-sm text-yellow-100">
+                            <p className="font-type text-[10px] uppercase tracking-wider text-yellow-400 flex items-center gap-1"><Lightbulb className="h-3 w-3" /> HINT · LEVEL {entry.level}</p>
+                            {entry.content}
+                          </div>
+                        </motion.div>
+                      );
+                    }
+                    return (
+                      <motion.div key={i} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} className="flex items-start gap-2">
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-400/10 text-amber-300"><Drama className="h-4 w-4" /></div>
+                        <div className="max-w-[85%] rounded-md rounded-bl-none border border-white/10 bg-black/40 px-3 py-2 text-sm leading-relaxed text-stone-200">
+                          <span className="font-type text-[10px] text-amber-400/70">GAME MASTER</span>
+                          <p>{entry.content}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  {chatBusy && <p className="flex items-center gap-2 pl-9 font-type text-xs text-amber-300"><Search className="h-4 w-4 animate-pulse" /> THINKING…</p>}
+                  <div ref={chatEndRef} />
+                </div>
+
+                <div className="border-t border-white/10 p-3">
+                  <p className="mb-2 stamp-label text-stone-500">ASK ABOUT A CLUE</p>
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {CLUE_QUESTIONS.map((s) => (
+                      <button key={s} onClick={() => askGameMaster(s)} disabled={chatBusy}
+                        className="rounded border border-amber-400/25 bg-amber-400/5 px-2.5 py-1 font-type text-[11px] text-amber-200 transition hover:bg-amber-400/15 disabled:opacity-40">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <form onSubmit={(e) => { e.preventDefault(); askGameMaster(message); }} className="flex items-center gap-2">
+                    <input value={message} onChange={(e) => setMessage(e.target.value)}
+                      className="flex-1 rounded-md border border-white/10 bg-black/40 px-3 py-2 text-sm text-stone-100 outline-none transition focus:border-amber-400/50 placeholder:text-stone-600"
+                      placeholder="ask the Game Master…" aria-label="Message the Game Master" />
+                    <button type="submit" disabled={chatBusy || !message.trim()}
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-amber-400/40 bg-amber-400/10 text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-40">
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </form>
+                </div>
+              </Panel>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ============ ESCAPE REPORT ============ */}
+        {phase === 'report' && report && (
+          <motion.div key="report" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="space-y-5">
+            <Panel className="relative overflow-hidden p-6 md:p-8" glow={ER.gold}>
+              <div className="mb-5 flex items-center gap-2">
+                <DoorOpen className="h-5 w-5 text-amber-300" />
+                <p className="stamp-label text-amber-300">ESCAPE REPORT</p>
+              </div>
+
+              <div className="flex flex-col items-center gap-6 md:flex-row">
+                {/* escape meter */}
+                <div className="relative flex h-40 w-40 shrink-0 items-center justify-center">
+                  <svg viewBox="0 0 120 120" className="h-40 w-40 -rotate-90">
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(168,162,158,0.15)" strokeWidth="8" />
+                    <motion.circle cx="60" cy="60" r="52" fill="none" stroke="url(#erg)" strokeWidth="8" strokeLinecap="round"
+                      initial={{ strokeDasharray: '0 327' }} animate={{ strokeDasharray: `${(report.score / 100) * 327} 327` }} transition={{ duration: 1.4, ease: 'easeOut' }} />
+                    <defs><linearGradient id="erg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor={ER.gold} /><stop offset="100%" stopColor={ER.ember} /></linearGradient></defs>
+                  </svg>
+                  <div className="absolute text-center">
+                    <CountUp to={report.score} className="font-display text-5xl font-bold text-white" />
+                    <p className="-mt-1 font-type text-[10px] text-stone-500">/ 100</p>
+                  </div>
+                </div>
+                <div className="text-center md:text-left">
+                  <p className="stamp-label text-stone-500">YOUR RATING</p>
+                  <p className="font-display text-3xl font-bold uppercase tracking-wide text-white">{report.grade}</p>
+                  <p className="mt-2 max-w-md text-sm leading-relaxed text-stone-300">{report.headline}</p>
+                  <div className="mt-3 flex flex-wrap justify-center gap-3 font-type text-xs text-stone-400 md:justify-start">
+                    <span className="flex items-center gap-1"><Timer className="h-3.5 w-3.5 text-amber-300" /> {fmtTime(elapsed)} in the room</span>
+                    <span className="flex items-center gap-1"><Lightbulb className="h-3.5 w-3.5 text-yellow-300" /> {hintsUsed} hints used</span>
+                  </div>
+                </div>
+              </div>
+            </Panel>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <Panel className="p-5" glow={ER.emerald}>
+                <p className="stamp-label mb-3 flex items-center gap-2 text-emerald-400"><CheckCircle2 className="h-4 w-4" /> WHAT YOU NAILED</p>
+                <ul className="space-y-2 text-sm text-stone-300">
+                  {report.strengths.map((s) => <li key={s} className="flex gap-2"><span className="text-emerald-400">▸</span>{s}</li>)}
+                </ul>
+              </Panel>
+              <Panel className="p-5" glow={ER.amber}>
+                <p className="stamp-label mb-3 flex items-center gap-2 text-amber-400"><AlertTriangle className="h-4 w-4" /> WHAT TO WATCH</p>
+                <ul className="space-y-2 text-sm text-stone-300">
+                  {report.improvements.map((s) => <li key={s} className="flex gap-2"><span className="text-amber-400">▸</span>{s}</li>)}
+                </ul>
+              </Panel>
+            </div>
+
+            {mission.learningPoints?.length > 0 && (
+              <Panel className="p-5">
+                <p className="stamp-label mb-3 flex items-center gap-2 text-amber-300"><Sparkles className="h-4 w-4" /> TAKEAWAYS</p>
+                <ul className="grid gap-2 text-sm text-stone-300 md:grid-cols-2">
+                  {mission.learningPoints.map((lp) => <li key={lp} className="flex gap-2"><span className="text-amber-400">▸</span>{lp}</li>)}
+                </ul>
+              </Panel>
             )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
-function GameMaster({
-  messages,
-  chatInput,
-  setChatInput,
-  onSend,
-  onHint,
-  busy,
-  suggestions,
-  hintsUsed,
-  chatEndRef,
-}) {
-  return (
-    <div className="card flex h-[540px] flex-col">
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-        <div className="flex items-center gap-2 font-semibold text-ink">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <SparkIcon className="h-4 w-4" />
-          </span>
-          AI Game Master
-        </div>
-        <button onClick={onHint} className="btn-ghost px-2 py-1 text-xs" disabled={busy}>
-          <BulbIcon className="h-4 w-4" /> Hint{hintsUsed ? ` (${hintsUsed})` : ''}
-        </button>
-      </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="stamp-label text-stone-500">TRY NEXT:</span>
+              {report.recommendedTopics.map((t) => <Tag key={t} color={ER.ember}>{t}</Tag>)}
+            </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
-                m.role === 'user'
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              <RichText text={m.content} />
+            <div className="flex items-start gap-2 rounded-md border border-white/10 bg-black/40 p-3 font-type text-[11px] leading-relaxed text-stone-500">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0" /> <Fingerprint className="mt-0.5 h-4 w-4 shrink-0" />
+              Your score is private to your account. Only anonymized, aggregated team stats are ever shared — no individual rankings.
             </div>
-          </div>
-        ))}
-        {busy && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl bg-slate-100 px-3.5 py-2.5 text-slate-400">
-              <Spinner className="h-4 w-4" />
+
+            <div className="flex flex-wrap gap-3">
+              <button onClick={() => navigate('/missions')} className="flex items-center gap-2 rounded-md px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-black" style={{ background: `linear-gradient(90deg, ${ER.gold}, ${ER.ember})` }}>
+                <ArrowLeft className="h-4 w-4" /> Back to rooms
+              </button>
+              <button onClick={restart} className="clue-frame rounded-md px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-amber-300 hover:bg-amber-400/10">
+                Play again
+              </button>
             </div>
-          </div>
+          </motion.div>
         )}
-        <div ref={chatEndRef} />
-      </div>
-
-      {suggestions?.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t border-slate-100 px-4 py-2">
-          {suggestions.map((s, i) => (
-            <button key={i} className="chip" onClick={() => onSend(s)}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <form
-        className="flex items-center gap-2 border-t border-slate-100 p-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          onSend()
-        }}
-      >
-        <input
-          className="input"
-          placeholder="Ask a question, e.g. Who really sent this?"
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-        />
-        <button type="submit" className="btn-primary px-3" disabled={busy}>
-          <SendIcon className="h-4 w-4" />
-        </button>
-      </form>
-    </div>
-  )
-}
-
-function ReportView({ report, mission, hintsUsed, onReplay }) {
-  if (!report)
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-brand-600">
-        <Spinner className="h-8 w-8" />
-        <p className="mt-3 text-sm text-slate-500">Generating your personalised learning report…</p>
-      </div>
-    )
-  const ring =
-    report.score >= 85 ? 'text-emerald-600' : report.score >= 70 ? 'text-brand-600' : report.score >= 50 ? 'text-amber-600' : 'text-rose-600'
-  return (
-    <div className="space-y-5">
-      <div className="card overflow-hidden">
-        <div className="bg-gradient-to-br from-brand-700 to-ink p-6 text-white">
-          <div className="flex items-center gap-2">
-            <TrophyIcon className="h-5 w-5" />
-            <span className="font-semibold">Mission complete</span>
-          </div>
-          <p className="mt-1 text-brand-100">{report.headline}</p>
-        </div>
-        <div className="grid gap-6 p-6 sm:grid-cols-3">
-          <div className="flex flex-col items-center justify-center rounded-2xl bg-slate-50 p-6">
-            <div className={`text-5xl font-black ${ring}`}>{report.score}</div>
-            <div className="mt-1 text-sm text-slate-400">out of 100</div>
-            <Badge color="blue" className="mt-3">
-              {report.grade}
-            </Badge>
-            <p className="mt-3 flex items-center gap-1 text-xs text-slate-400">
-              <ClockIcon className="h-3.5 w-3.5" /> {hintsUsed} hint{hintsUsed === 1 ? '' : 's'} used
-            </p>
-          </div>
-          <div className="sm:col-span-2 space-y-4">
-            <div>
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
-                <CheckIcon className="h-4 w-4" /> Strengths
-              </h3>
-              <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
-                {report.strengths.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-emerald-500" />
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-700">
-                <BulbIcon className="h-4 w-4" /> Areas to improve
-              </h3>
-              <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
-                {report.improvements.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-amber-500" />
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="card p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Key learning points
-        </h3>
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {mission.learningPoints?.map((p, i) => (
-            <li key={i} className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
-              <ShieldIcon className="mt-0.5 h-4 w-4 flex-none text-brand-600" />
-              {p}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-400">
-          Your score is private to you. In a real deployment, only anonymised, aggregated team
-          insights would be shared — never individual rankings.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <button onClick={onReplay} className="btn-outline">
-          Replay mission
-        </button>
-        <Link to="/missions" className="btn-primary">
-          Back to missions <ArrowRightIcon className="h-4 w-4" />
-        </Link>
-      </div>
-    </div>
-  )
+      </AnimatePresence>
+    </EscapeRoom>
+  );
 }

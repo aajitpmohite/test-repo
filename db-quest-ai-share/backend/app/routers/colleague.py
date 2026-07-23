@@ -1,76 +1,77 @@
-"""AI Digital Colleague endpoints: Q&A, onboarding, acronyms, expert finder."""
+"""Digital Colleague routes (team-scoped).
+
+- ask:        grounded Q&A over the CURRENT team's documents only.
+- onboarding: role-based ramp-up plan.
+- acronym:    glossary lookup (global reference data).
+- expert:     topic-owner finder (global reference data; matched by topic, not rank).
+"""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlmodel import Session
 
-from ..ai_service import ai
-from ..content import content
-from ..knowledge import store
+from .. import retrieval
+from ..ai_service import AIService
+from ..config import settings
+from ..content import ContentStore
+from ..database import get_session
 from ..models import (
-    AcronymRequest,
-    AcronymResponse,
-    AskRequest,
-    AskResponse,
-    ExpertRequest,
-    ExpertResponse,
-    OnboardingRequest,
-    OnboardingResponse,
-    Source,
+    ColleagueAcronymRequest,
+    ColleagueAcronymResponse,
+    ColleagueAskRequest,
+    ColleagueAskResponse,
+    ColleagueExpertRequest,
+    ColleagueExpertResponse,
+    ColleagueOnboardingRequest,
+    ColleagueOnboardingResponse,
 )
+from ..security import TeamContext, get_team_context
 
 router = APIRouter(prefix="/api/colleague", tags=["colleague"])
+service = AIService()
+content_store = ContentStore(settings.data_dir)  # acronyms + experts (global reference)
 
 
-@router.post("/ask", response_model=AskResponse)
-async def ask(req: AskRequest) -> AskResponse:
-    chunks = store.search(req.question, k=4)
-    result = await ai.answer_question(req.question, chunks)
-    sources = [Source(**s) for s in result.get("sources", [])]
-    return AskResponse(answer=result["answer"], sources=sources, confidence=result.get("confidence", "medium"))
+@router.post("/ask", response_model=ColleagueAskResponse)
+def ask(payload: ColleagueAskRequest, context: TeamContext = Depends(get_team_context), session: Session = Depends(get_session)) -> ColleagueAskResponse:
+    # Retrieval is restricted to this team's documents so answers never leak across teams.
+    chunks = retrieval.search(session, context.team.id, payload.question, k=4)
+    answer = service.answer_question(payload.question, chunks)
+    return ColleagueAskResponse(
+        answer=answer.get("answer", "I could not find a reliable answer in your team's documents."),
+        sources=answer.get("sources", []),
+        confidence=answer.get("confidence", "low"),
+    )
 
 
-@router.post("/onboarding", response_model=OnboardingResponse)
-async def onboarding(req: OnboardingRequest) -> OnboardingResponse:
-    result = await ai.onboarding_plan(req.role, req.project, req.days)
-    return OnboardingResponse(**result)
+@router.post("/onboarding", response_model=ColleagueOnboardingResponse)
+def onboarding(payload: ColleagueOnboardingRequest, context: TeamContext = Depends(get_team_context)) -> ColleagueOnboardingResponse:
+    return service.onboarding_plan(payload.role, payload.project, payload.days)
 
 
-@router.post("/acronym", response_model=AcronymResponse)
-async def acronym(req: AcronymRequest) -> AcronymResponse:
-    term = req.term.strip()
-    match = content.get_acronym(term)
-    if match:
-        return AcronymResponse(
-            term=term.upper(),
-            expansion=match["expansion"],
-            explanation=match["explanation"],
-            context=match.get("context", ""),
-            related=match.get("related", []),
-            matched=True,
+@router.post("/acronym", response_model=ColleagueAcronymResponse)
+def acronym(payload: ColleagueAcronymRequest, context: TeamContext = Depends(get_team_context)) -> ColleagueAcronymResponse:
+    term = payload.term.upper()
+    match = next((item for item in content_store.list_acronyms() if item["term"].upper() == term), None)
+    if not match:
+        return ColleagueAcronymResponse(
+            term=term,
+            expansion="No match found",
+            explanation="No common acronym definition is available for that term.",
+            context="The term is not part of the seeded glossary.",
+            related=[],
+            matched=False,
         )
-    return AcronymResponse(
-        term=term.upper(),
-        expansion="Unknown",
-        explanation=(
-            f"'{term.upper()}' isn't in the loaded glossary yet. Ask your team lead, or an admin can "
-            "add it to the acronym dictionary."
-        ),
-        context="",
-        related=[],
-        matched=False,
+    return ColleagueAcronymResponse(
+        term=term,
+        expansion=match.get("expansion", ""),
+        explanation=match.get("explanation", ""),
+        context=match.get("context", ""),
+        related=match.get("related", []),
+        matched=True,
     )
 
 
-@router.post("/expert", response_model=ExpertResponse)
-async def expert(req: ExpertRequest) -> ExpertResponse:
-    matches = await ai.find_expert(req.query, content.experts)
-    note = (
-        "Relevant contacts based on document ownership and topic match — not a performance ranking."
-    )
-    from ..models import ExpertMatch
-
-    return ExpertResponse(
-        query=req.query,
-        matches=[ExpertMatch(**m) for m in matches],
-        note=note,
-    )
+@router.post("/expert", response_model=ColleagueExpertResponse)
+def expert(payload: ColleagueExpertRequest, context: TeamContext = Depends(get_team_context)) -> ColleagueExpertResponse:
+    return service.find_expert(payload.query, content_store.list_experts())

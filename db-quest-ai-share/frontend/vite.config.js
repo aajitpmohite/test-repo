@@ -1,8 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// The dev server proxies /api to the FastAPI backend so there are no CORS
-// issues during development and the frontend can use relative URLs.
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -14,4 +12,4 @@ export default defineConfig({
       },
     },
   },
-})
+});
