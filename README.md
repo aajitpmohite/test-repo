@@ -12,6 +12,7 @@ transparently upgrades to a live LLM + embeddings when you configure a provider.
 
 ---
 
+
 ## Usage model (how a team uses it)
 
 ```
