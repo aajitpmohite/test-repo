@@ -214,6 +214,32 @@
   .skeleton {
     @apply relative overflow-hidden rounded-lg bg-elevated;
   }
+
+  /* Print isolation: only the certificate sheet prints. */
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+    body * {
+      visibility: hidden !important;
+    }
+    .cert-print,
+    .cert-print * {
+      visibility: visible !important;
+    }
+    .cert-print {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      box-shadow: none !important;
+    }
+    .print-hide {
+      display: none !important;
+    }
+  }
   .skeleton::after {
     content: '';
     position: absolute;

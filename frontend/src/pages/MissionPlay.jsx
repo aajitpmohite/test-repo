@@ -8,12 +8,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, DoorOpen, Lock, LockOpen, KeyRound, Timer, Puzzle, Lightbulb, Send,
   Trophy, AlertTriangle, CheckCircle2, ChevronRight, Drama, Flame, Fingerprint,
-  Sparkles, Eye, Search, Volume2, VolumeX, Megaphone,
+  Sparkles, Eye, Search, Volume2, VolumeX, Megaphone, Mic, Award,
 } from 'lucide-react';
 import { apiGet, apiPost } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { EscapeRoom, Panel, Tag, CountUp, ER, ROOM_COLOR } from '../components/escaperoom';
 import { playSound, isMuted, setMuted } from '../lib/audio';
-import { speak, stopSpeaking, speechSupported } from '../lib/speech';
+import { speak, stopSpeaking, speechSupported, startDictation, recognitionSupported } from '../lib/speech';
+import Certificate from '../components/Certificate';
 
 const RISK = {
   low: { label: 'LOW', color: ER.emerald },
@@ -32,6 +34,7 @@ const fmtTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(
 export default function MissionPlay() {
   const { missionId } = useParams();
   const navigate = useNavigate();
+  const { user, activeTeam } = useAuth();
   const [mission, setMission] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -51,8 +54,11 @@ export default function MissionPlay() {
   // Sound effects (unlock/lock) + spoken narration of the Game Master.
   const [muted, setMutedState] = useState(isMuted());
   const [narrate, setNarrate] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [showCert, setShowCert] = useState(false);
   const chatEndRef = useRef(null);
   const spokenCountRef = useRef(0);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     apiGet(`/api/missions/${missionId}`).then(setMission).catch(() => setNotFound(true));
@@ -71,14 +77,31 @@ export default function MissionPlay() {
     spokenCountRef.current = chat.length;
   }, [chat, narrate]);
 
-  // Stop any narration when leaving the room.
-  useEffect(() => () => stopSpeaking(), []);
+  // Stop any narration / dictation when leaving the room.
+  useEffect(() => () => { stopSpeaking(); recognitionRef.current?.stop(); }, []);
 
   function toggleMuted() {
     setMutedState((m) => { const next = !m; setMuted(next); return next; });
   }
   function toggleNarrate() {
     setNarrate((n) => { const next = !n; if (!next) stopSpeaking(); return next; });
+  }
+
+  // Push-to-talk: dictate a question to the Game Master instead of typing it.
+  function toggleDictation() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const rec = startDictation({
+      onResult: (transcript) => setMessage(transcript),
+      onEnd: () => { setListening(false); recognitionRef.current = null; },
+      onError: () => { setListening(false); recognitionRef.current = null; },
+    });
+    if (rec) {
+      recognitionRef.current = rec;
+      setListening(true);
+    }
   }
 
   useEffect(() => {
@@ -451,7 +474,15 @@ export default function MissionPlay() {
                   <form onSubmit={(e) => { e.preventDefault(); askGameMaster(message); }} className="flex items-center gap-2">
                     <input value={message} onChange={(e) => setMessage(e.target.value)}
                       className="flex-1 rounded-md border border-white/10 bg-black/40 px-3 py-2 text-sm text-stone-100 outline-none transition focus:border-amber-400/50 placeholder:text-stone-600"
-                      placeholder="ask the Game Master…" aria-label="Message the Game Master" />
+                      placeholder={listening ? 'listening… speak now' : 'ask the Game Master…'} aria-label="Message the Game Master" />
+                    {recognitionSupported && (
+                      <button type="button" onClick={toggleDictation}
+                        title={listening ? 'Stop listening' : 'Speak to the Game Master'}
+                        aria-label={listening ? 'Stop listening' : 'Speak to the Game Master'} aria-pressed={listening}
+                        className={`flex h-9 w-9 items-center justify-center rounded-md border transition ${listening ? 'animate-pulse border-rose-400/60 bg-rose-500/20 text-rose-300' : 'border-white/10 text-stone-400 hover:border-amber-400/40 hover:text-amber-300'}`}>
+                        <Mic className="h-4 w-4" />
+                      </button>
+                    )}
                     <button type="submit" disabled={chatBusy || !message.trim()}
                       className="flex h-9 w-9 items-center justify-center rounded-md border border-amber-400/40 bg-amber-400/10 text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-40">
                       <Send className="h-4 w-4" />
@@ -536,6 +567,10 @@ export default function MissionPlay() {
               <button onClick={() => navigate('/missions')} className="flex items-center gap-2 rounded-md px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-black" style={{ background: `linear-gradient(90deg, ${ER.gold}, ${ER.ember})` }}>
                 <ArrowLeft className="h-4 w-4" /> Back to rooms
               </button>
+              <button onClick={() => setShowCert(true)}
+                className="flex items-center gap-2 rounded-md border border-amber-400/50 px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-amber-300 transition hover:bg-amber-400/10">
+                <Award className="h-4 w-4" /> Claim certificate
+              </button>
               <button onClick={restart} className="clue-frame rounded-md px-6 py-3 font-display text-sm font-bold uppercase tracking-widest text-amber-300 hover:bg-amber-400/10">
                 Play again
               </button>
@@ -543,6 +578,19 @@ export default function MissionPlay() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showCert && report && (
+        <Certificate
+          name={user?.fullName || user?.email?.split('@')[0]}
+          team={activeTeam?.name}
+          missionTitle={mission.title}
+          topic={mission.topic}
+          grade={report.grade}
+          score={report.score}
+          date={new Date()}
+          onClose={() => setShowCert(false)}
+        />
+      )}
     </EscapeRoom>
   );
 }

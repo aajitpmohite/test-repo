@@ -33,3 +33,37 @@ export function speak(text) {
 export function stopSpeaking() {
   if (speechSupported) window.speechSynthesis.cancel();
 }
+
+// ---- Speech-to-text (dictation) via the Web Speech Recognition API ----
+// Lets a player *talk* to the Game Master instead of typing. Chromium-based
+// browsers support this (webkit-prefixed); unsupported browsers just hide the mic.
+const Recognition =
+  typeof window !== 'undefined'
+    ? window.SpeechRecognition || window.webkitSpeechRecognition
+    : undefined;
+
+export const recognitionSupported = Boolean(Recognition);
+
+// Start listening. Calls onResult(transcript, isFinal) as speech is recognised,
+// then onEnd() when it stops. Returns a handle with .stop() — or null if unsupported.
+export function startDictation({ onResult, onEnd, onError } = {}) {
+  if (!Recognition) return null;
+  const rec = new Recognition();
+  rec.lang = 'en-US';
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.onresult = (event) => {
+    let transcript = '';
+    for (let i = 0; i < event.results.length; i += 1) transcript += event.results[i][0].transcript;
+    const isFinal = event.results[event.results.length - 1].isFinal;
+    onResult?.(transcript.trim(), isFinal);
+  };
+  rec.onerror = (event) => onError?.(event.error);
+  rec.onend = () => onEnd?.();
+  try {
+    rec.start();
+  } catch {
+    return null;
+  }
+  return rec;
+}
