@@ -164,6 +164,8 @@ class MissionReportResponse(BaseModel):
 
 class ColleagueAskRequest(BaseModel):
     question: str
+    # Prior turns for multi-turn context: [{"role": "user"|"assistant", "content": str}].
+    history: list[dict[str, str]] = Field(default_factory=list)
 
 
 class ColleagueAskResponse(BaseModel):

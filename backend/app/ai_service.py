@@ -138,7 +138,7 @@ class AIService:
 
     # ---- Live-capable methods -------------------------------------------------
 
-    def answer_question(self, question: str, chunks: list[dict[str, Any]]) -> dict[str, Any]:
+    def answer_question(self, question: str, chunks: list[dict[str, Any]], history: list[dict[str, str]] | None = None) -> dict[str, Any]:
         # Sources and confidence always come from the retriever so citations stay faithful.
         base = answer_question(question, chunks)
         if settings.provider_configured and chunks:
@@ -146,9 +146,21 @@ class AIService:
                 context = "\n\n".join(f"[{c.get('title')}] {c.get('text')}" for c in chunks)
                 system = (
                     "You are a helpful internal colleague. Answer ONLY using the provided context. "
+                    "Use the conversation so far to resolve follow-up references. "
                     "If the answer is not in the context, say you do not have that information."
                 )
-                prompt = f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer concisely in 3-5 sentences using only the context."
+                convo = ""
+                if history:
+                    turns = [
+                        f"{'User' if h.get('role') == 'user' else 'Colleague'}: {h.get('content', '')}"
+                        for h in history[-6:] if h.get("content")
+                    ]
+                    if turns:
+                        convo = "Conversation so far:\n" + "\n".join(turns) + "\n\n"
+                prompt = (
+                    f"{convo}Context:\n{context}\n\nQuestion: {question}\n\n"
+                    "Answer concisely in 3-5 sentences using only the context."
+                )
                 text = self.provider.chat(prompt, system=system)
                 self.live = self.provider.live
                 if text and text.strip():

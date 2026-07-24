@@ -34,9 +34,13 @@ content_store = ContentStore(settings.data_dir)  # acronyms + experts (global re
 
 @router.post("/ask", response_model=ColleagueAskResponse)
 def ask(payload: ColleagueAskRequest, context: TeamContext = Depends(get_team_context), session: Session = Depends(get_session)) -> ColleagueAskResponse:
-    # Retrieval is restricted to this team's documents so answers never leak across teams.
-    chunks = retrieval.search(session, context.team.id, payload.question, k=4)
-    answer = service.answer_question(payload.question, chunks)
+    # For short follow-ups ("what about that?"), fold the previous user turn into the
+    # retrieval query so we still fetch the right chunks. Retrieval stays restricted to
+    # this team's documents so answers never leak across teams.
+    prev_user = next((t.get("content", "") for t in reversed(payload.history) if t.get("role") == "user"), "")
+    search_query = f"{prev_user} {payload.question}".strip()
+    chunks = retrieval.search(session, context.team.id, search_query, k=4)
+    answer = service.answer_question(payload.question, chunks, payload.history)
     return ColleagueAskResponse(
         answer=answer.get("answer", "I could not find a reliable answer in your team's documents."),
         sources=answer.get("sources", []),
