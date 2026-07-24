@@ -8,6 +8,7 @@ import {
   ExpertIcon, DocumentIcon, ShieldIcon, MenuIcon, CloseIcon, SunIcon, MoonIcon,
   ChevronDownIcon, LogoutIcon, HelpIcon, ChartIcon, UsersIcon, CheckIcon,
 } from './components/icons';
+import { BookText, LayoutGrid, Activity } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Missions from './pages/Missions';
 import MissionPlay from './pages/MissionPlay';
@@ -18,6 +19,9 @@ import Acronyms from './pages/Acronyms';
 import Experts from './pages/Experts';
 import Documents from './pages/Documents';
 import Insights from './pages/Insights';
+import Confluence from './pages/Confluence';
+import Board from './pages/Board';
+import Incidents from './pages/Incidents';
 import Help from './pages/Help';
 import Login from './pages/Login';
 import { apiGet } from './api';
@@ -44,6 +48,14 @@ const navGroups = [
       { to: '/documents', label: 'Documents', icon: DocumentIcon },
     ],
   },
+  {
+    title: 'Enterprise · Demo',
+    items: [
+      { to: '/confluence', label: 'Confluence', icon: BookText },
+      { to: '/board', label: 'Jira Board', icon: LayoutGrid },
+      { to: '/incidents', label: 'Incidents', icon: Activity },
+    ],
+  },
   { title: 'Support', items: [{ to: '/help', label: 'How it works', icon: HelpIcon }] },
 ];
 
@@ -57,6 +69,9 @@ const routeMeta = {
   '/acronyms': 'Acronym Explorer',
   '/experts': 'Expert Finder',
   '/documents': 'Documents',
+  '/confluence': 'Confluence',
+  '/board': 'Jira Board',
+  '/incidents': 'ServiceNow Incidents',
   '/help': 'How it works',
 };
 
@@ -285,6 +300,9 @@ export default function App() {
               <Route path="/acronyms" element={<Acronyms />} />
               <Route path="/experts" element={<Experts />} />
               <Route path="/documents" element={<Documents />} />
+              <Route path="/confluence" element={<Confluence />} />
+              <Route path="/board" element={<Board />} />
+              <Route path="/incidents" element={<Incidents />} />
               <Route path="/help" element={<Help />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

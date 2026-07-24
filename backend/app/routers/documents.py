@@ -102,7 +102,8 @@ def paste(payload: DocumentPasteRequest, context: TeamContext = Depends(require_
     text = payload.text.strip()
     if not title or not text:
         raise HTTPException(status_code=400, detail="Both a title and text are required")
-    document = Document(team_id=context.team.id, title=title, source="paste", content=text, uploaded_by=context.user.id)
+    source = payload.source if payload.source in ("paste", "confluence") else "paste"
+    document = Document(team_id=context.team.id, title=title, source=source, content=text, uploaded_by=context.user.id)
     session.add(document)
     session.commit()
     session.refresh(document)

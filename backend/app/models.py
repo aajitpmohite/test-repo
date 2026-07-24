@@ -236,6 +236,8 @@ class DocumentItem(BaseModel):
 class DocumentPasteRequest(BaseModel):
     title: str
     text: str
+    # Where the content came from: "paste" (default) or a connector like "confluence".
+    source: str = Field(default="paste")
 
 
 class DocumentUploadResponse(BaseModel):

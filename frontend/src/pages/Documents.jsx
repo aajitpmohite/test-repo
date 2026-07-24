@@ -8,7 +8,7 @@ import { useToast } from '../context/ToastContext';
 import { PageHeader, Spinner, EmptyState, Skeleton } from '../components/ui';
 import { DocumentIcon, UploadIcon, SparkIcon, CheckIcon, BoltIcon, AlertIcon, ExpertIcon, LockIcon, InfoIcon } from '../components/icons';
 
-const sourceLabels = { seed: 'Sample', upload: 'Uploaded', paste: 'Pasted' };
+const sourceLabels = { seed: 'Sample', upload: 'Uploaded', paste: 'Pasted', confluence: 'Confluence' };
 
 export default function Documents() {
   const { isAdmin, activeTeam } = useAuth();
@@ -165,6 +165,7 @@ export default function Documents() {
                   <option value="seed">Sample</option>
                   <option value="upload">Uploaded</option>
                   <option value="paste">Pasted</option>
+                  <option value="confluence">Confluence</option>
                 </select>
               </div>
             )}
