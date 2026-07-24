@@ -1,7 +1,7 @@
 // Team knowledge base. Admins add documents (which are chunked + indexed for search);
 // everyone can browse and summarise. Clearly communicates that docs are shared with the
 // whole team and power the Colleague's answers.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost, apiUpload } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -20,6 +20,18 @@ export default function Documents() {
   const [activeId, setActiveId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
+  const [docQuery, setDocQuery] = useState('');
+  const [sourceF, setSourceF] = useState('all');
+
+  const filteredDocs = useMemo(() => {
+    if (!documents) return [];
+    const q = docQuery.trim().toLowerCase();
+    return documents.filter((d) => {
+      if (sourceF !== 'all' && d.source !== sourceF) return false;
+      if (q && !d.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [documents, docQuery, sourceF]);
 
   async function loadDocuments() {
     try {
@@ -139,15 +151,34 @@ export default function Documents() {
 
           <div className="card">
             <p className="mb-3 font-semibold text-strong">Indexed documents {documents ? `(${documents.length})` : ''}</p>
+            {documents !== null && documents.length > 0 && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <input
+                  className="input flex-1 py-2 text-sm"
+                  value={docQuery}
+                  onChange={(e) => setDocQuery(e.target.value)}
+                  placeholder="Search documents…"
+                  aria-label="Search documents"
+                />
+                <select className="select w-auto py-2 text-sm" value={sourceF} onChange={(e) => setSourceF(e.target.value)} aria-label="Filter by source">
+                  <option value="all">All sources</option>
+                  <option value="seed">Sample</option>
+                  <option value="upload">Uploaded</option>
+                  <option value="paste">Pasted</option>
+                </select>
+              </div>
+            )}
             {documents === null ? (
               <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
             ) : documents.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted">
                 No documents yet — {isAdmin ? 'add your team’s guides to power answers.' : 'ask an admin to add some.'}
               </p>
+            ) : filteredDocs.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted">No documents match your search.</p>
             ) : (
               <div className="space-y-2">
-                {documents.map((doc) => (
+                {filteredDocs.map((doc) => (
                   <button key={doc.id} onClick={() => summarize(doc.id)}
                     className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
                       activeId === doc.id ? 'border-brand-500/50 bg-brand-500/10' : 'border-line bg-inset hover:border-brand-500/30'

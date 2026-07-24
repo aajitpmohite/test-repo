@@ -1,11 +1,11 @@
 // ESCAPE MISSIONS board — pick a locked room to break out of.
 // Same data/logic as before (team-scoped list + server-saved progress); escape-room UI.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Lock, LockOpen, DoorClosed, KeyRound, Timer, Trophy, ChevronRight, Plus,
-  Flame, Puzzle, Skull, Fingerprint,
+  Flame, Puzzle, Skull, Fingerprint, Search, SlidersHorizontal, ArrowDownUp, X,
 } from 'lucide-react';
 import { apiGet } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -16,10 +16,27 @@ const DIFFICULTY = {
   Intermediate: { label: 'TRICKY', color: ER.amber },
   Expert: { label: 'FIENDISH', color: ER.rust },
 };
+const TOPICS = ['Cybersecurity', 'Data Privacy', 'Operational Risk', 'Responsible AI'];
+const DIFF_ORDER = { Beginner: 0, Intermediate: 1, Expert: 2 };
+const SORTS = {
+  default: { label: 'Newest', fn: (a, b, ai, bi) => ai - bi },
+  points: { label: 'Most keys', fn: (a, b) => (b.points || 0) - (a.points || 0) },
+  time: { label: 'Quickest', fn: (a, b) => (a.estimatedMinutes || 0) - (b.estimatedMinutes || 0) },
+  difficulty: { label: 'Hardest', fn: (a, b) => (DIFF_ORDER[b.difficulty] ?? 0) - (DIFF_ORDER[a.difficulty] ?? 0) },
+  title: { label: 'A → Z', fn: (a, b) => (a.title || '').localeCompare(b.title || '') },
+};
+
+// Escape-room styled control.
+const erSelect = 'rounded-md border border-white/10 bg-black/40 px-2.5 py-2 font-type text-xs uppercase tracking-wider text-stone-200 outline-none transition focus:border-amber-400/50';
 
 export default function Missions() {
   const { isAdmin, activeTeam } = useAuth();
   const [missions, setMissions] = useState(null);
+  const [query, setQuery] = useState('');
+  const [topicF, setTopicF] = useState('all');
+  const [diffF, setDiffF] = useState('all');
+  const [statusF, setStatusF] = useState('all');
+  const [sort, setSort] = useState('default');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,6 +45,26 @@ export default function Missions() {
 
   const escaped = missions ? missions.filter((m) => m.completed).length : 0;
   const total = missions ? missions.length : 0;
+
+  const filtered = useMemo(() => {
+    if (!missions) return [];
+    const q = query.trim().toLowerCase();
+    const withIndex = missions.map((m, i) => [m, i]);
+    return withIndex
+      .filter(([m]) => {
+        if (topicF !== 'all' && m.topic !== topicF) return false;
+        if (diffF !== 'all' && m.difficulty !== diffF) return false;
+        if (statusF === 'escaped' && !m.completed) return false;
+        if (statusF === 'locked' && m.completed) return false;
+        if (q && !(`${m.title} ${m.summary} ${m.topic}`.toLowerCase().includes(q))) return false;
+        return true;
+      })
+      .sort((a, b) => SORTS[sort].fn(a[0], b[0], a[1], b[1]))
+      .map(([m]) => m);
+  }, [missions, query, topicF, diffF, statusF, sort]);
+
+  const filtersActive = query || topicF !== 'all' || diffF !== 'all' || statusF !== 'all' || sort !== 'default';
+  const clearFilters = () => { setQuery(''); setTopicF('all'); setDiffF('all'); setStatusF('all'); setSort('default'); };
 
   return (
     <EscapeRoom>
@@ -70,6 +107,53 @@ export default function Missions() {
         </div>
       </Panel>
 
+      {/* Filter / search / sort toolbar */}
+      {missions !== null && missions.length > 0 && (
+        <Panel className="mb-5 flex flex-wrap items-center gap-2.5 px-4 py-3">
+          <div className="relative min-w-[180px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search rooms…"
+              aria-label="Search missions"
+              className="w-full rounded-md border border-white/10 bg-black/40 py-2 pl-9 pr-3 text-sm text-stone-100 outline-none transition focus:border-amber-400/50 placeholder:text-stone-600"
+            />
+          </div>
+          <div className="flex items-center gap-1.5 text-stone-500">
+            <SlidersHorizontal className="h-4 w-4" />
+          </div>
+          <select className={erSelect} value={topicF} onChange={(e) => setTopicF(e.target.value)} aria-label="Filter by topic">
+            <option value="all">All topics</option>
+            {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select className={erSelect} value={diffF} onChange={(e) => setDiffF(e.target.value)} aria-label="Filter by difficulty">
+            <option value="all">All levels</option>
+            {Object.keys(DIFFICULTY).map((d) => <option key={d} value={d}>{DIFFICULTY[d].label}</option>)}
+          </select>
+          <select className={erSelect} value={statusF} onChange={(e) => setStatusF(e.target.value)} aria-label="Filter by status">
+            <option value="all">Any status</option>
+            <option value="locked">Locked</option>
+            <option value="escaped">Escaped</option>
+          </select>
+          <div className="flex items-center gap-1.5">
+            <ArrowDownUp className="h-4 w-4 text-stone-500" />
+            <select className={erSelect} value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort missions">
+              {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          {filtersActive && (
+            <button onClick={clearFilters}
+              className="flex items-center gap-1 rounded-md border border-white/10 px-2.5 py-2 font-type text-[11px] uppercase tracking-wider text-stone-400 transition hover:border-rose-400/40 hover:text-rose-300">
+              <X className="h-3.5 w-3.5" /> Clear
+            </button>
+          )}
+          <span className="ml-auto font-type text-[11px] uppercase tracking-wider text-stone-500">
+            {filtered.length} / {total} rooms
+          </span>
+        </Panel>
+      )}
+
       {/* Rooms */}
       {missions === null ? (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -83,9 +167,19 @@ export default function Missions() {
             {isAdmin ? 'Build a room to start training your team.' : 'No escape rooms have been set up for this team yet.'}
           </p>
         </Panel>
+      ) : filtered.length === 0 ? (
+        <Panel className="flex flex-col items-center gap-3 py-16 text-center">
+          <Search className="h-10 w-10 text-stone-600" />
+          <p className="font-display text-xl uppercase tracking-wide text-white">No rooms match</p>
+          <p className="max-w-sm font-type text-xs text-stone-500">Try a different search or clear the filters.</p>
+          <button onClick={clearFilters}
+            className="clue-frame mt-1 rounded-md px-4 py-2 font-display text-sm uppercase tracking-wider text-amber-300 hover:bg-amber-400/10">
+            Clear filters
+          </button>
+        </Panel>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {missions.map((m, i) => {
+          {filtered.map((m, i) => {
             const diff = DIFFICULTY[m.difficulty] || DIFFICULTY.Beginner;
             const door = ROOM_COLOR[m.topic] || ER.amber;
             return (

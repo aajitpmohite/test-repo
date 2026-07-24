@@ -5,19 +5,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand — Deutsche Bank inspired indigo/blue (theme-independent)
+        // Primary brand — Deutsche Bank navy (theme-independent)
         brand: {
-          DEFAULT: '#4f6bff',
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#4f6bff',
-          600: '#4056e6',
-          700: '#3342c4',
-          800: '#2b389c',
-          900: '#28347d',
+          DEFAULT: '#2f5aa8',
+          50: '#eef3fb',
+          100: '#d8e3f5',
+          200: '#b3c7e9',
+          300: '#85a3d8',
+          400: '#557dc2',
+          500: '#2f5aa8',
+          600: '#234789',
+          700: '#1c3970',
+          800: '#182e59',
+          900: '#132445',
+        },
+        // Secondary accent — signature gold (theme-independent)
+        gold: {
+          DEFAULT: '#c8a24a',
+          50: '#fbf6e9',
+          100: '#f4e8c4',
+          200: '#ecd492',
+          300: '#e0bd5e',
+          400: '#d0a63c',
+          500: '#b98a2f',
+          600: '#9a6e27',
+          700: '#7c5722',
+          800: '#654620',
+          900: '#543a1e',
         },
         // Semantic tokens — resolved from CSS variables so they flip with the theme.
         app: 'rgb(var(--app) / <alpha-value>)',
@@ -30,6 +44,7 @@ export default {
         muted: 'rgb(var(--text-muted) / <alpha-value>)',
         faint: 'rgb(var(--text-faint) / <alpha-value>)',
         accent: 'rgb(var(--accent) / <alpha-value>)',
+        'gold-accent': 'rgb(var(--gold) / <alpha-value>)',
         ink: '#0b1120',
       },
       fontFamily: {
@@ -38,7 +53,8 @@ export default {
       boxShadow: {
         card: 'var(--shadow-card)',
         'card-hover': 'var(--shadow-card-hover)',
-        glow: '0 0 0 1px rgba(79, 107, 255, 0.25), 0 12px 40px -12px rgba(79, 107, 255, 0.45)',
+        glow: '0 0 0 1px rgba(47, 90, 168, 0.25), 0 12px 40px -12px rgba(47, 90, 168, 0.45)',
+        'glow-gold': '0 0 0 1px rgba(200, 162, 74, 0.3), 0 12px 40px -12px rgba(200, 162, 74, 0.45)',
       },
       backgroundImage: {
         'grid-faint':

@@ -8,39 +8,41 @@
   /* ---- Light theme (default) ---- */
   :root {
     color-scheme: light;
-    --app: 244 246 251;
+    --app: 243 246 251;
     --card: 255 255 255;
-    --inset: 240 243 249;
-    --elevated: 233 237 245;
-    --line: 224 229 238;
-    --text-strong: 15 23 42;
-    --text-body: 51 65 85;
-    --text-muted: 100 116 139;
-    --text-faint: 148 163 184;
-    --accent: 64 86 230;
-    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 30px -14px rgba(15, 23, 42, 0.16);
-    --shadow-card-hover: 0 1px 2px rgba(15, 23, 42, 0.06), 0 18px 40px -16px rgba(79, 107, 255, 0.28);
-    --hero-overlay-1: rgba(79, 107, 255, 0.1);
-    --hero-overlay-2: rgba(59, 130, 246, 0.07);
+    --inset: 238 242 249;
+    --elevated: 230 236 245;
+    --line: 220 227 238;
+    --text-strong: 17 27 46;
+    --text-body: 49 63 85;
+    --text-muted: 98 114 139;
+    --text-faint: 146 161 184;
+    --accent: 35 71 137;
+    --gold: 152 110 39;
+    --shadow-card: 0 1px 2px rgba(19, 36, 69, 0.05), 0 10px 30px -14px rgba(19, 36, 69, 0.18);
+    --shadow-card-hover: 0 1px 2px rgba(19, 36, 69, 0.07), 0 18px 40px -16px rgba(47, 90, 168, 0.3);
+    --hero-overlay-1: rgba(47, 90, 168, 0.12);
+    --hero-overlay-2: rgba(200, 162, 74, 0.08);
   }
 
   /* ---- Dark theme ---- */
   [data-theme='dark'] {
     color-scheme: dark;
-    --app: 8 12 23;
-    --card: 13 20 36;
-    --inset: 6 9 18;
-    --elevated: 22 32 58;
-    --line: 40 50 70;
-    --text-strong: 248 250 252;
-    --text-body: 203 213 225;
-    --text-muted: 148 163 184;
-    --text-faint: 100 116 139;
-    --accent: 165 180 252;
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 30px -14px rgba(0, 0, 0, 0.55);
-    --shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.25), 0 18px 40px -16px rgba(79, 107, 255, 0.35);
-    --hero-overlay-1: rgba(79, 107, 255, 0.14);
-    --hero-overlay-2: rgba(59, 130, 246, 0.1);
+    --app: 7 12 24;
+    --card: 12 19 37;
+    --inset: 5 9 20;
+    --elevated: 20 31 58;
+    --line: 34 46 72;
+    --text-strong: 247 250 252;
+    --text-body: 201 212 226;
+    --text-muted: 146 161 184;
+    --text-faint: 98 114 139;
+    --accent: 141 174 235;
+    --gold: 224 189 94;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 30px -14px rgba(0, 0, 0, 0.6);
+    --shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 40px -16px rgba(47, 90, 168, 0.4);
+    --hero-overlay-1: rgba(47, 90, 168, 0.18);
+    --hero-overlay-2: rgba(200, 162, 74, 0.1);
   }
 
   * {
@@ -122,6 +124,14 @@
     @apply btn bg-transparent text-muted hover:bg-elevated hover:text-strong;
   }
 
+  .btn-gold {
+    @apply btn text-ink shadow-[0_6px_20px_-8px_rgba(200,162,74,0.8)];
+    background-image: linear-gradient(180deg, #e0bd5e, #c8a24a);
+  }
+  .btn-gold:hover {
+    background-image: linear-gradient(180deg, #ecd492, #d0a63c);
+  }
+
   .btn-sm {
     @apply px-3 py-1.5 text-xs;
   }
@@ -154,15 +164,38 @@
   }
 
   .nav-link {
-    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-all duration-200 hover:bg-elevated hover:text-strong;
+    @apply relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-all duration-200 hover:bg-elevated hover:text-strong;
   }
 
   .nav-link-active {
-    @apply bg-brand-500/[0.12] text-strong shadow-[inset_0_0_0_1px_rgba(79,107,255,0.25)];
+    @apply bg-brand-500/[0.12] text-strong shadow-[inset_0_0_0_1px_rgba(47,90,168,0.28)];
+  }
+  .nav-link-active::before {
+    content: '';
+    @apply absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r bg-gold-400;
   }
 
   .surface-inset {
     @apply rounded-xl border border-line bg-inset p-4;
+  }
+
+  /* Banking-grade KPI tile: a card with a gold top rule and tabular figures. */
+  .kpi {
+    @apply relative overflow-hidden rounded-2xl border border-line bg-card p-5 shadow-card;
+  }
+  .kpi::before {
+    content: '';
+    @apply absolute inset-x-0 top-0 h-0.5;
+    background-image: linear-gradient(90deg, theme('colors.brand.500'), theme('colors.gold.400'));
+  }
+  .kpi-figure {
+    @apply text-3xl font-bold tracking-tight text-strong;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Toolbar for search / filter / sort rows above list views. */
+  .toolbar {
+    @apply flex flex-wrap items-center gap-2.5 rounded-2xl border border-line bg-card p-3 shadow-card;
   }
 
   .divider {
