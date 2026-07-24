@@ -12,6 +12,7 @@ const difficulties = ['Beginner', 'Intermediate', 'Expert'];
 export default function AdminGenerator() {
   const toast = useToast();
   const { liveAi, aiProvider } = useHealth();
+  const [policy, setPolicy] = useState('');
   const [topic, setTopic] = useState('Cybersecurity');
   const [audience, setAudience] = useState('team member');
   const [difficulty, setDifficulty] = useState('Beginner');
@@ -23,7 +24,7 @@ export default function AdminGenerator() {
     e?.preventDefault();
     setLoading(true);
     try {
-      const result = await apiPost('/api/missions/generate', { topic, audience, difficulty });
+      const result = await apiPost('/api/missions/generate', { topic, audience, difficulty, policy: policy.trim() });
       setMission(result);
       toast.success('Mission created and saved to your team.');
     } catch (err) {
@@ -38,12 +39,24 @@ export default function AdminGenerator() {
       <PageHeader
         eyebrow="Escape Missions"
         title="Mission Generator"
-        subtitle="Spin up a fresh three-step compliance scenario on demand — preview it, then play it immediately."
+        subtitle="Paste a policy or describe a real scenario — the AI turns it into a three-step compliance escape mission you can preview and play immediately."
         icon={<GenerateIcon className="h-6 w-6" />}
       />
 
       <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
         <form onSubmit={generate} className="card h-fit space-y-4">
+          <div>
+            <label className="label">Policy or scenario description</label>
+            <textarea
+              className="input min-h-[132px] resize-y"
+              value={policy}
+              onChange={(e) => setPolicy(e.target.value)}
+              placeholder="Paste a policy or describe the situation to train on, e.g. “Staff must verify any vendor bank-detail change by calling a known contact — never act on an emailed request alone.”"
+            />
+            <p className="mt-1 text-xs text-faint">
+              The AI builds the scenario, objectives, and learning points from this. Leave blank to generate from the topic alone.
+            </p>
+          </div>
           <div>
             <label className="label">Topic</label>
             <select className="select" value={topic} onChange={(e) => setTopic(e.target.value)}>
@@ -75,8 +88,8 @@ export default function AdminGenerator() {
           </button>
           <p className="text-xs leading-relaxed text-faint">
             {liveAi
-              ? `Live AI (${aiProvider}) generates the mission and it's coerced into the mission schema (falling back to a deterministic archetype if the model is unavailable).`
-              : 'In offline demo mode this uses deterministic archetypes keyed off your topic. Configure an AI provider to generate missions with a live model.'}
+              ? `Live AI (${aiProvider}) writes the mission from your policy, then it's coerced into the mission schema (falling back to a deterministic archetype if the model is unavailable).`
+              : 'In offline demo mode this maps your policy/topic to a deterministic archetype. Configure an AI provider to author missions from your policy with a live model.'}
           </p>
         </form>
 
@@ -140,7 +153,7 @@ export default function AdminGenerator() {
           ) : (
             <EmptyState
               title="No mission generated yet"
-              text="Choose a topic, audience, and difficulty, then generate to preview the steps and learning points."
+              text="Describe a policy or scenario (and pick a topic/difficulty), then generate to preview the steps and learning points."
               icon={<GenerateIcon className="h-6 w-6" />}
             />
           )}

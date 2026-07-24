@@ -20,7 +20,6 @@ from ..database import get_session
 from ..db_models import Mission, MissionAttempt
 from ..models import (
     GenerateMissionRequest,
-    Mission as MissionModel,
     MissionEvaluateRequest,
     MissionEvaluateResponse,
     MissionHintRequest,
@@ -106,9 +105,9 @@ def get_mission(slug: str, context: TeamContext = Depends(get_team_context), ses
     return _sanitize(mission)
 
 
-@router.post("/generate", response_model=MissionModel)
+@router.post("/generate", response_model=SanitizedMission)
 def generate_mission(payload: GenerateMissionRequest, context: TeamContext = Depends(require_admin), session: Session = Depends(get_session)) -> dict[str, Any]:
-    mission = service.generate_mission(payload.topic, payload.audience, payload.difficulty)
+    mission = service.generate_mission(payload.topic, payload.audience, payload.difficulty, payload.policy)
     count = len(session.exec(select(Mission).where(Mission.team_id == context.team.id)).all())
     slug = f"gen-{count + 1}"
     mission["id"] = slug
@@ -123,7 +122,10 @@ def generate_mission(payload: GenerateMissionRequest, context: TeamContext = Dep
         created_by=context.user.id,
     ))
     session.commit()
-    return mission
+    # Return the SANITIZED mission (answer key + clues stripped) — same as GET /{slug}.
+    # This keeps answer keys server-side and avoids response-schema mismatches on the
+    # rich `clues` shape that some live models emit.
+    return _sanitize(mission)
 
 
 @router.post("/interact", response_model=MissionInteractResponse)

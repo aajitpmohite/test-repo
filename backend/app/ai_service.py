@@ -68,6 +68,18 @@ def _coerce_mission(data: dict[str, Any], topic: str, difficulty: str) -> dict[s
             "choices": coerced_choices,
         })
 
+    # Normalise clues to the schema shape dict[str, dict[str, str]]. Some live models
+    # return clues as dict[str, str]; wrap those as {"finding": ..., "meaning": ""} so
+    # the stored mission stays valid and the Game Master fallback can still read them.
+    raw_clues = data.get("clues")
+    clues: dict[str, dict[str, str]] = {}
+    if isinstance(raw_clues, dict):
+        for key, value in raw_clues.items():
+            if isinstance(value, dict):
+                clues[str(key)] = {str(k): str(v) for k, v in value.items()}
+            else:
+                clues[str(key)] = {"finding": str(value), "meaning": ""}
+
     chosen_topic = data.get("topic") if data.get("topic") in VALID_TOPICS else (
         topic if topic in VALID_TOPICS else "Cybersecurity"
     )
@@ -95,7 +107,7 @@ def _coerce_mission(data: dict[str, Any], topic: str, difficulty: str) -> dict[s
         "steps": coerced_steps,
         "learningPoints": [str(x) for x in data.get("learningPoints", []) if x] or ["Stay alert to social engineering."],
         "policyRefs": [str(x) for x in data.get("policyRefs", []) if x] or ["Internal Security Policy"],
-        "clues": data.get("clues") if isinstance(data.get("clues"), dict) else {},
+        "clues": clues,
         "generated": True,
     }
 
@@ -145,10 +157,15 @@ class AIService:
                 self.live = False
         return base
 
-    def generate_mission(self, topic: str, audience: str, difficulty: str) -> dict[str, Any]:
+    def generate_mission(self, topic: str, audience: str, difficulty: str, policy: str = "") -> dict[str, Any]:
         if settings.provider_configured:
             try:
                 system = "You are a compliance training designer. Respond ONLY with a valid JSON object and no prose."
+                policy_line = (
+                    f"Base the scenario, objectives, and learning points on this specific policy / "
+                    f"situation description:\n\"\"\"\n{policy.strip()}\n\"\"\"\n"
+                    if policy.strip() else ""
+                )
                 prompt = (
                     "Create a compliance escape-room mission as a JSON object with these keys: "
                     "title, topic, difficulty, summary, briefing, scenario, objectives (array), "
@@ -156,6 +173,7 @@ class AIService:
                     "Each step has: id, prompt, clue, choices (array of exactly 3). "
                     "Each choice has: id, text, correct (boolean), risk (one of low, medium, high), feedback. "
                     "EXACTLY ONE choice per step must have correct=true. "
+                    f"{policy_line}"
                     f"topic must be one of Cybersecurity, Data Privacy, Operational Risk, Responsible AI (use '{topic}'). "
                     f"difficulty must be '{difficulty}'. Audience: {audience}. Return only the JSON object."
                 )
@@ -166,7 +184,7 @@ class AIService:
                     return mission
             except Exception:
                 self.live = False
-        return generate_mission(topic, audience, difficulty)
+        return generate_mission(topic, audience, difficulty, policy)
 
     # ---- Deterministic methods (always mock, by design) -----------------------
 

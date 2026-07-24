@@ -103,6 +103,9 @@ class GenerateMissionRequest(BaseModel):
     topic: str
     audience: str = Field(default="team member")
     difficulty: str = Field(default="Beginner")
+    # Free-text policy / scenario description the AI turns into a mission. Optional:
+    # when empty the generator falls back to topic-driven archetypes.
+    policy: str = Field(default="")
 
 
 class MissionInteractRequest(BaseModel):

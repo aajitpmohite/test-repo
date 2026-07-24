@@ -30,8 +30,10 @@ def _keyword_map(value: str) -> str:
     return "phishing"
 
 
-def generate_mission(topic: str, audience: str, difficulty: str) -> dict[str, Any]:
-    archetype = _keyword_map(topic)
+def generate_mission(topic: str, audience: str, difficulty: str, policy: str = "") -> dict[str, Any]:
+    # Fold any policy text into the archetype match so an offline mission still
+    # reflects what the admin described, not just the topic dropdown.
+    archetype = _keyword_map(f"{topic} {policy}")
     templates = {
         "phishing": {
             "title": "Phishing at 5 PM",
