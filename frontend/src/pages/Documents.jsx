@@ -115,7 +115,7 @@ export default function Documents() {
       <div className="flex items-start gap-2 rounded-xl border border-line bg-inset p-3 text-xs leading-relaxed text-muted">
         <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
         <span>
-          Supported: <b className="text-body">.txt, .md, .csv</b>. Each document is split into searchable chunks and
+          Supported: <b className="text-body">.txt, .md, .csv, .pdf</b>. Each document is split into searchable chunks and
           cited in answers on the <b className="text-body">Ask</b> page. Everything is scoped to{' '}
           <b className="text-body">{activeTeam?.name || 'your team'}</b>.
         </span>
@@ -135,7 +135,7 @@ export default function Documents() {
                 </button>
                 <label className="btn-outline cursor-pointer">
                   <UploadIcon className="h-4 w-4" /> Upload file
-                  <input type="file" accept=".txt,.md,.csv" className="hidden" onChange={uploadFile} disabled={busy} />
+                  <input type="file" accept=".txt,.md,.csv,.pdf" className="hidden" onChange={uploadFile} disabled={busy} />
                 </label>
               </div>
             </form>

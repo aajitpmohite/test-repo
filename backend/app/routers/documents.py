@@ -6,6 +6,7 @@ into per-team chunks that power the Digital Colleague's grounded answers.
 """
 from __future__ import annotations
 
+import io
 import os
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -20,6 +21,29 @@ from ..security import TeamContext, get_team_context, require_admin
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 service = AIService()
+
+SUPPORTED_EXTENSIONS = (".txt", ".md", ".csv", ".pdf")
+
+
+def _extract_pdf_text(raw: bytes) -> str:
+    """Extract text from a PDF's pages. Returns "" for image-only (scanned) PDFs."""
+    try:
+        from pypdf import PdfReader
+    except ImportError:  # pragma: no cover - dependency guaranteed in requirements
+        raise HTTPException(status_code=500, detail="PDF support is not available on the server")
+    try:
+        reader = PdfReader(io.BytesIO(raw))
+        parts = [(page.extract_text() or "").strip() for page in reader.pages]
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not read that PDF — the file may be corrupt or password-protected")
+    return "\n\n".join(p for p in parts if p)
+
+
+def _decode_text(raw: bytes) -> str:
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
 
 
 def _to_public(session: Session, document: Document) -> DocumentPublic:
@@ -45,13 +69,18 @@ async def upload(
     context: TeamContext = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> DocumentPublic:
-    if not file.filename or not file.filename.lower().endswith((".txt", ".md", ".csv")):
-        raise HTTPException(status_code=400, detail="Only .txt, .md, and .csv files are supported")
+    if not file.filename or not file.filename.lower().endswith(SUPPORTED_EXTENSIONS):
+        raise HTTPException(status_code=400, detail="Only .txt, .md, .csv, and .pdf files are supported")
     raw = await file.read()
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        text = raw.decode("latin-1")
+    if file.filename.lower().endswith(".pdf"):
+        text = _extract_pdf_text(raw)
+        if not text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="No selectable text found in that PDF (it may be scanned images). Try a text-based PDF.",
+            )
+    else:
+        text = _decode_text(raw)
     document = Document(
         team_id=context.team.id,
         title=os.path.splitext(file.filename)[0],
