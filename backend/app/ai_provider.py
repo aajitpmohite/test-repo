@@ -101,6 +101,21 @@ class AIProvider:
                 self.live = True
                 return response.json()["candidates"][0]["content"]["parts"][0]["text"]
 
+        if provider == "groq":
+            # Groq exposes an OpenAI-compatible Chat Completions API.
+            payload = {
+                "model": self.config.get("groq_model", "llama-3.3-70b-versatile"),
+                "messages": self._messages(prompt, system),
+            }
+            headers = {"Authorization": f"Bearer {self.config.get('api_key', '')}"}
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(
+                    "https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers
+                )
+                response.raise_for_status()
+                self.live = True
+                return response.json()["choices"][0]["message"]["content"]
+
         # mock / unknown provider
         self.live = False
         return ""

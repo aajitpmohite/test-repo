@@ -44,6 +44,9 @@ class Settings:
     azure_api_version: str = os.getenv("AZURE_API_VERSION", "2024-02-01")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    # Groq — OpenAI-compatible, free tier. Chat only (no embeddings → retrieval uses TF-IDF).
+    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    groq_model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     # ---- Auth ----
     jwt_secret: str = os.getenv("JWT_SECRET", "dev-secret-change-me-in-production")
@@ -86,6 +89,8 @@ class Settings:
             return bool(self.azure_api_key and self.azure_endpoint)
         if self.ai_provider == "gemini":
             return bool(self.gemini_api_key)
+        if self.ai_provider == "groq":
+            return bool(self.groq_api_key)
         return False
 
     @property

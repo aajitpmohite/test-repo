@@ -126,6 +126,7 @@ class AIService:
             "api_key": (
                 settings.openai_api_key if settings.ai_provider == "openai"
                 else settings.gemini_api_key if settings.ai_provider == "gemini"
+                else settings.groq_api_key if settings.ai_provider == "groq"
                 else settings.azure_api_key
             ),
             "endpoint": settings.azure_endpoint,
@@ -133,6 +134,7 @@ class AIService:
             "azure_deployment": settings.azure_deployment,
             "azure_api_version": settings.azure_api_version,
             "gemini_model": settings.gemini_model,
+            "groq_model": settings.groq_model,
         })
         self.live = settings.provider_configured
 
